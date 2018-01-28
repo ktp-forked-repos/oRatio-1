@@ -2,7 +2,11 @@ file( GLOB SOLVER_SOURCES tests.cpp ${CMAKE_SOURCE_DIR}/smt-lib/*.cpp ${CMAKE_SO
 
 add_executable( solver_tests ${SOLVER_SOURCES} )
 
-if(WIN32)
+set( THREADS_PREFER_PTHREAD_FLAG ON )
+find_package( Threads REQUIRED )
+target_link_libraries( solver_tests Threads::Threads)
+
+if( WIN32 )
   target_link_libraries( solver_tests wsock32 ws2_32 )
 endif()
 
