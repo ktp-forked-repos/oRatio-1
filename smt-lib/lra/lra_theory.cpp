@@ -415,32 +415,45 @@ void lra_theory::pivot(const var x_i, const var x_j)
     expr /= -c;
     expr.vars.insert({x_i, rational::ONE / c});
 
-    for (const auto &r : std::vector<row *>(t_watches.at(x_j).begin(), t_watches.at(x_j).end())) // these are the rows in which x_j appears..
+    // these are the rows in which x_j appears..
+    for (const auto &r : std::vector<row *>(t_watches.at(x_j).begin(), t_watches.at(x_j).end()))
     {
-        rational cc = r->l.vars.at(x_j);
-        r->l.vars.erase(x_j);
-        t_watches.at(x_j).erase(r);
-        for (auto &term : expr.vars)
-        {
-            const auto trm_it = r->l.vars.find(term.first);
-            if (trm_it == r->l.vars.end())
+        sat.th_pool.enqueue([this, x_j, expr, r] {
+            rational cc = r->l.vars.at(x_j);
+            r->l.vars.erase(x_j);
             {
-                r->l.vars.insert({term.first, term.second * cc});
-                t_watches.at(term.first).insert(r);
+                std::unique_lock<std::mutex> lock(t_watches_mutex);
+                t_watches.at(x_j).erase(r);
             }
-            else
+            for (auto &term : expr.vars)
             {
-                assert(trm_it->first == term.first);
-                trm_it->second += term.second * cc;
-                if (trm_it->second == rational::ZERO)
+                const auto trm_it = r->l.vars.find(term.first);
+                if (trm_it == r->l.vars.end())
                 {
-                    r->l.vars.erase(trm_it);
-                    t_watches.at(term.first).erase(r);
+                    r->l.vars.insert({term.first, term.second * cc});
+                    {
+                        std::unique_lock<std::mutex> lock(t_watches_mutex);
+                        t_watches.at(term.first).insert(r);
+                    }
+                }
+                else
+                {
+                    assert(trm_it->first == term.first);
+                    trm_it->second += term.second * cc;
+                    if (trm_it->second == rational::ZERO)
+                    {
+                        r->l.vars.erase(trm_it);
+                        {
+                            std::unique_lock<std::mutex> lock(t_watches_mutex);
+                            t_watches.at(term.first).erase(r);
+                        }
+                    }
                 }
             }
-        }
-        r->l.known_term += expr.known_term * cc;
+            r->l.known_term += expr.known_term * cc;
+        });
     }
+    sat.th_pool.join();
 
     // we add a new row into the tableau..
     new_row(x_j, expr);

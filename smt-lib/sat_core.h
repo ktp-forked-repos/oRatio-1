@@ -89,7 +89,7 @@ private:
   void listen(const var &v, sat_value_listener &l) { listening[v].insert(&l); }
 
 public:
-  static thread_pool th_pool;
+  thread_pool th_pool;
 
 private:
   std::vector<clause *> constrs;              // collection of problem constraints..

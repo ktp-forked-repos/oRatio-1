@@ -1,4 +1,5 @@
 #include "thread_pool.h"
+#include <cassert>
 
 namespace smt
 {
@@ -26,7 +27,7 @@ thread_pool::thread_pool()
                 {
                     std::unique_lock<std::mutex> lock(this->queue_mutex);
                     active--;
-                    if (!active)
+                    if (active == 0)
                         condition.notify_all();
                 }
             }
@@ -57,7 +58,8 @@ void thread_pool::enqueue(std::function<void()> f)
 void thread_pool::join()
 {
     std::unique_lock<std::mutex> lock(this->queue_mutex);
-    if (!active)
-        this->condition.wait(lock, [this] { return active == 0; });
+    if (active != 0 || !this->tasks.empty())
+        this->condition.wait(lock, [this] { return active == 0 && this->tasks.empty(); });
+    assert(active == 0);
 }
 }

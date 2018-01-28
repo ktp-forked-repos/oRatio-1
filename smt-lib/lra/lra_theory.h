@@ -6,6 +6,7 @@
 #include <set>
 #include <unordered_set>
 #include <unordered_map>
+#include <mutex>
 
 namespace smt
 {
@@ -101,6 +102,7 @@ class lra_theory : public theory
     std::vector<std::vector<assertion *>> a_watches;       // for each variable 'v', a list of assertions watching 'v'..
     std::vector<std::unordered_set<row *>> t_watches;      // for each variable 'v', a list of tableau rows watching 'v'..
     std::vector<std::unordered_map<size_t, bound>> layers; // we store the updated bounds..
+    std::mutex t_watches_mutex;
     std::unordered_map<var, std::set<lra_value_listener *>> listening;
 };
 }
