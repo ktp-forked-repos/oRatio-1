@@ -2,6 +2,7 @@
 
 #include "lit.h"
 #include "lbool.h"
+#include "thread_pool.h"
 #include <vector>
 #include <set>
 #include <queue>
@@ -86,6 +87,9 @@ private:
   void add_theory(theory &th) { theories.push_back(&th); }
   void bind(const var &v, theory &th) { bounds[v].insert(&th); }
   void listen(const var &v, sat_value_listener &l) { listening[v].insert(&l); }
+
+public:
+  static thread_pool th_pool;
 
 private:
   std::vector<clause *> constrs;              // collection of problem constraints..
