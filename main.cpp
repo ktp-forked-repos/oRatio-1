@@ -50,6 +50,8 @@ int main(int argc, char *argv[])
     std::cout << ".." << std::endl;
 
     solver s;
+    std::cout << "hardware concurrency: " << std::to_string(s.sat_cr.th_pool.size()) << std::endl;
+
 #ifndef NDEBUG
     socket_listener l(s);
 #endif

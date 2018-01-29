@@ -16,7 +16,7 @@ public:
   thread_pool(const thread_pool &orig) = delete;
   virtual ~thread_pool();
 
-  size_t get_size() const { return workers.size(); }
+  size_t size() const { return workers.size(); }
   void enqueue(std::function<void()> f);
   void join();
 
