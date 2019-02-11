@@ -54,6 +54,8 @@ private:
   // the flaw (i.e. two or more temporally overlapping atoms on the same state-variable instance) that can arise from a state-variable..
   class sv_flaw : public flaw
   {
+    friend class state_variable;
+
   public:
     sv_flaw(solver &slv, const std::set<atom *> &overlapping_atoms);
     sv_flaw(sv_flaw &&) = delete;
@@ -64,6 +66,7 @@ private:
 #endif
 
   private:
+    std::vector<std::pair<smt::lit, double>> evaluate(); // evaluates the flaw returning the current available choices and their commit..
     void compute_resolvers() override;
 
   private:
@@ -114,5 +117,6 @@ private:
 private:
   std::set<item *> to_check;                                // the state-variable instances whose atoms have changed..
   std::vector<std::pair<atom *, sv_atom_listener *>> atoms; // we store, for each atom, its atom listener..
+  std::map<std::set<atom *>, sv_flaw *> sv_flaws;           // the state-variable flaws found so far..
 };
 } // namespace ratio
