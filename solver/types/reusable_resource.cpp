@@ -207,8 +207,19 @@ void reusable_resource::new_fact(atom_flaw &f)
                     arith_expr a1_end = c_atm.first->get(END);
                     get_solver().leq(a0_end, a1_start);
                     get_solver().leq(a1_end, a0_start);
-                    a0_tau_itm->eq(*a1_tau_itm);
-                    a1_tau_itm->eq(*a0_tau_itm);
+
+                    std::unordered_set<var_value *> a0_vals = get_solver().enum_value(static_cast<var_item *>(a0_tau_itm));
+                    std::unordered_set<var_value *> a1_vals = get_solver().enum_value(static_cast<var_item *>(a1_tau_itm));
+                    if (a0_vals.size() == 1 || a1_vals.size() == 1)
+                    {
+                        a0_tau_itm->eq(*a1_tau_itm);
+                        a1_tau_itm->eq(*a0_tau_itm);
+                    }
+                    else
+                        for (const auto &v0 : a0_vals)
+                            for (const auto &v1 : a1_vals)
+                                if (v0 != v1)
+                                    get_solver().get_sat_core().new_conj({a0_tau_itm->eq(*static_cast<item *>(v0)), a1_tau_itm->eq(*static_cast<item *>(v1))});
                 }
             }
             else if (!a0_tau_itm)
@@ -348,7 +359,7 @@ std::vector<std::pair<lit, double>> reusable_resource::rr_flaw::evaluate()
                         for (const auto &v1 : a1_vals)
                             if (v0 != v1)
                             {
-                                lit choice(static_cast<item *>(v0)->eq(*static_cast<item *>(v1)), false);
+                                lit choice(slv.get_sat_core().new_conj({a0_tau_itm->eq(*static_cast<item *>(v0)), a1_tau_itm->eq(*static_cast<item *>(v1))}));
                                 if (slv.get_sat_core().value(choice) != False)
                                     choices.push_back({choice, 1l - 1l / static_cast<double>(tot)});
                             }
@@ -395,11 +406,28 @@ void reusable_resource::rr_flaw::compute_resolvers()
         item *a1_tau_itm = dynamic_cast<var_item *>(&*a1_tau);
         if (a0_tau_itm || a1_tau_itm)
         {
-            if (!a0_tau_itm)
-                a0_tau_itm = &*a0_tau;
-            if (!a1_tau_itm)
-                a1_tau_itm = &*a1_tau;
-            add_resolver(*new displace_resolver(slv, *this, *as[0], *as[1], lit(a0_tau_itm->eq(*a1_tau_itm), false)));
+            if (a0_tau_itm && a1_tau_itm)
+            {
+                // we have two non-singleton variables..
+                std::unordered_set<var_value *> a0_vals = slv.enum_value(static_cast<var_item *>(a0_tau_itm));
+                std::unordered_set<var_value *> a1_vals = slv.enum_value(static_cast<var_item *>(a1_tau_itm));
+                size_t tot = a0_vals.size() * a1_vals.size();
+                if (a0_vals.size() == 1 || a1_vals.size() == 1)
+                    add_resolver(*new displace_resolver(slv, *this, *as[0], *as[1], lit(a0_tau_itm->eq(*a1_tau_itm), false)));
+                else
+                    for (const auto &v0 : a0_vals)
+                        for (const auto &v1 : a1_vals)
+                            if (v0 != v1)
+                            {
+                                lit choice(slv.get_sat_core().new_conj({a0_tau_itm->eq(*static_cast<item *>(v0)), a1_tau_itm->eq(*static_cast<item *>(v1))}));
+                                if (slv.get_sat_core().value(choice) != False)
+                                    add_resolver(*new place_resolver(slv, *this, *as[0], *as[1], choice));
+                            }
+            }
+            else if (!a0_tau_itm)
+                add_resolver(*new displace_resolver(slv, *this, *as[0], *as[1], lit(a0_tau->eq(*a1_tau_itm), false)));
+            else if (!a1_tau_itm)
+                add_resolver(*new displace_resolver(slv, *this, *as[0], *as[1], lit(a1_tau->eq(*a0_tau_itm), false)));
         }
     }
 }
@@ -415,6 +443,20 @@ std::string reusable_resource::order_resolver::get_label() const
 #endif
 
 void reusable_resource::order_resolver::apply()
+{
+}
+
+reusable_resource::place_resolver::place_resolver(solver &slv, rr_flaw &f, const atom &a0, const atom &a1, const lit &neq_lit) : resolver(slv, 0, f), a0(a0), a1(a1), neq_lit(neq_lit) {}
+reusable_resource::place_resolver::~place_resolver() {}
+
+#ifdef BUILD_GUI
+std::string reusable_resource::place_resolver::get_label() const
+{
+    return "ρ" + std::to_string(get_rho()) + " pl σ" + std::to_string(a0.get_sigma()) + ".τ && σ" + std::to_string(a1.get_sigma()) + ".τ";
+}
+#endif
+
+void reusable_resource::place_resolver::apply()
 {
 }
 

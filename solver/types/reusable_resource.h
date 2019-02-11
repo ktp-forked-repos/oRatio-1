@@ -106,6 +106,27 @@ private:
     const atom &after;
   };
 
+  // a resolver for placing atoms on specific instances..
+  class place_resolver : public resolver
+  {
+  public:
+    place_resolver(solver &slv, rr_flaw &f, const atom &a0, const atom &a1, const smt::lit &neq_lit);
+    place_resolver(const place_resolver &that) = delete;
+    virtual ~place_resolver();
+
+#ifdef BUILD_GUI
+    std::string get_label() const override;
+#endif
+
+  private:
+    void apply() override;
+
+  private:
+    const atom &a0;
+    const atom &a1;
+    const smt::lit neq_lit;
+  };
+
   // a resolver for displacing atoms..
   class displace_resolver : public resolver
   {
