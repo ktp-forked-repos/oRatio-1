@@ -31,6 +31,7 @@ std::vector<flaw *> reusable_resource::get_flaws()
         // we enter into the main scheduling loop..
         while (true)
         {
+        sched_loop:
             c_flaws.clear();
             // we partition atoms for each reusable-resource they might insist on..
             std::unordered_map<item *, std::vector<atom *>> rr_instances;
@@ -121,6 +122,8 @@ std::vector<flaw *> reusable_resource::get_flaws()
                     {
                     case 0: // we have an unsolvable flaw: we backtrack..
                     {
+                        if (get_solver().get_sat_core().root_level())
+                            throw std::runtime_error("the problem is unsolvable");
                         std::vector<smt::lit> trail = get_trail();
                         std::vector<smt::lit> no_good(trail.rbegin(), trail.rend());
                         no_good[0] = !no_good[0];
@@ -128,13 +131,13 @@ std::vector<flaw *> reusable_resource::get_flaws()
                         record(no_good);
                         if (!get_solver().get_sat_core().check())
                             throw std::runtime_error("the problem is unsolvable");
-                        break;
+                        goto sched_loop;
                     }
                     case 1: // we have a deterministic flaw..
                         if (!get_solver().get_sat_core().assume(eval.at(0).first) || !get_solver().get_sat_core().check())
                             throw std::runtime_error("the problem is unsolvable");
-                        break;
-                    default:
+                        goto sched_loop;
+                    default: // we have to take a decision..
                         double bst_commit = std::numeric_limits<double>::infinity();
                         for (const auto &evl : eval)
                             if (evl.second < bst_commit)

@@ -178,7 +178,7 @@ bool solver::has_inconsistencies()
     }
     else
     {
-        LOG("no inconsistencies found..");
+        LOG("no new inconsistencies found..");
         return false;
     }
 }
