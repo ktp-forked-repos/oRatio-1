@@ -96,7 +96,8 @@ private:
 
 private:
   resolver *res = nullptr;                                    // the current resolver (will go straight into the trail)..
-  std::unordered_set<flaw *> flaws;                           // the current active flaws..
+  std::unordered_set<flaw *> flaws;                           // the currently active flaws..
+  std::vector<flaw *> pending_flaws;                          // the currently pending (i.e. those that have not yet been initialized) flaws..
   std::unordered_map<smt::var, std::vector<flaw *>> phis;     // the phi variables (propositional variable to flaws) of the flaws..
   std::unordered_map<smt::var, std::vector<resolver *>> rhos; // the rho variables (propositional variable to resolver) of the resolvers..
   std::deque<flaw *> flaw_q;                                  // the flaw queue (for the graph building procedure)..

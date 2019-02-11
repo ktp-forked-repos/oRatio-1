@@ -28,13 +28,13 @@ var lra_theory::new_var()
 var lra_theory::new_var(const lin &l)
 {
     // we create, if needed, a new arithmetic variable which is equal to the given linear expression..
-    assert(sat.root_level());
     const std::string s_expr = l.to_string();
     const auto at_expr = exprs.find(s_expr);
     if (at_expr != exprs.end()) // the expression already exists..
         return at_expr->second;
     else // we need to create a new slack variable..
     {
+        assert(sat.root_level());
         const var slack = new_var();
         exprs.emplace(s_expr, slack);
         vals[slack] = value(l); // we set the initial value of the new slack variable..

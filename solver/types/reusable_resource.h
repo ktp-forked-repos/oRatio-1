@@ -67,6 +67,8 @@ private:
   // the flaw (i.e. temporally overlapping atoms on the same reusable-resource instance whose consumption sums up to an amount which is greater than the resource's capacity) that can arise from a state-variable..
   class rr_flaw : public flaw
   {
+    friend class reusable_resource;
+
   public:
     rr_flaw(solver &slv, const std::set<atom *> &overlapping_atoms);
     rr_flaw(rr_flaw &&) = delete;
@@ -77,6 +79,7 @@ private:
 #endif
 
   private:
+    std::vector<std::pair<smt::lit, double>> evaluate(); // evaluates the flaw returning the current available choices and their commit..
     void compute_resolvers() override;
 
   private:
@@ -125,7 +128,8 @@ private:
   };
 
 private:
-  std::set<item *> to_check;
-  std::vector<std::pair<atom *, rr_atom_listener *>> atoms;
+  std::set<item *> to_check;                                // the reusable resources to check for inconsistencies..
+  std::vector<std::pair<atom *, rr_atom_listener *>> atoms; // the reusable resources' atoms and their listeners..
+  std::map<std::set<atom *>, rr_flaw *> rr_flaws;           // the reusable resource flaws found so far..
 };
 } // namespace ratio

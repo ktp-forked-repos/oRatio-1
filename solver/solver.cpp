@@ -51,6 +51,12 @@ void solver::solve()
                 // we go back to root level..
                 while (!get_sat_core().root_level())
                     get_sat_core().pop();
+                for (const auto &f : pending_flaws)
+                {
+                    new_flaw(*f);
+                    expand_flaw(*f);
+                }
+                pending_flaws.clear();
                 if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
                     increase_accuracy();     // so we increase the heuristic accuracy..
                 else
@@ -72,11 +78,22 @@ void solver::solve()
                 if (!get_sat_core().assume(res->rho) || !get_sat_core().check())
                     throw std::runtime_error("the problem is unsolvable");
 
+                FIRE_STATE_CHANGED();
                 res = nullptr;
 
 #ifdef GRAPH_PRUNING
                 check_graph(); // we check whether the planning graph can be used for the search..
 #endif
+            }
+
+            if (get_sat_core().root_level()) // we initialize and expand the new flaws..
+            {
+                for (const auto &f : pending_flaws)
+                {
+                    new_flaw(*f);
+                    expand_flaw(*f);
+                }
+                pending_flaws.clear();
             }
         }
         else if (!has_inconsistencies()) // we run out of flaws, we check for inconsistencies one last time..
@@ -150,17 +167,8 @@ bool solver::has_inconsistencies()
     assert(std::none_of(incs.begin(), incs.end(), [&](flaw *f) { return f->structural; }));
     if (!incs.empty())
     {
-        LOG("found " << std::to_string(incs.size()) << " inconsistencies..");
-        // we go back to root level..
-        while (!get_sat_core().root_level())
-            get_sat_core().pop();
-
-        // we initialize and expand the new flaws..
-        for (const auto &f : incs)
-        {
-            new_flaw(*f);
-            expand_flaw(*f);
-        }
+        LOG("found " << std::to_string(incs.size()) << " new inconsistencies..");
+        pending_flaws.insert(pending_flaws.end(), incs.begin(), incs.end());
 
 #ifdef GRAPH_PRUNING
         // we re-assume the current graph var to allow search within the current graph..
@@ -313,6 +321,15 @@ bool solver::is_deferrable(flaw &f)
 #ifdef GRAPH_PRUNING
 void solver::check_graph()
 {
+    // we go back to root level..
+    while (!get_sat_core().root_level())
+        get_sat_core().pop();
+    for (const auto &f : pending_flaws)
+    {
+        new_flaw(*f);
+        expand_flaw(*f);
+    }
+    pending_flaws.clear();
     while (get_sat_core().root_level())
         if (get_sat_core().value(gamma) == Undefined)
         {
