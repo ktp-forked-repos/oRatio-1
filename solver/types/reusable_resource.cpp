@@ -337,11 +337,6 @@ std::vector<std::pair<lit, double>> reusable_resource::rr_flaw::evaluate()
                 std::unordered_set<var_value *> a0_vals = slv.enum_value(static_cast<var_item *>(a0_tau_itm));
                 std::unordered_set<var_value *> a1_vals = slv.enum_value(static_cast<var_item *>(a1_tau_itm));
                 size_t tot = a0_vals.size() * a1_vals.size();
-                int rmv = 0;
-                for (const auto &v0 : a0_vals)
-                    for (const auto &v1 : a1_vals)
-                        if (v0 != v1)
-                            rmv++;
                 if (a0_vals.size() == 1 || a1_vals.size() == 1)
                 {
                     lit choice(a0_tau_itm->eq(*a1_tau_itm), false);
@@ -355,7 +350,7 @@ std::vector<std::pair<lit, double>> reusable_resource::rr_flaw::evaluate()
                             {
                                 lit choice(static_cast<item *>(v0)->eq(*static_cast<item *>(v1)), false);
                                 if (slv.get_sat_core().value(choice) != False)
-                                    choices.push_back({choice, 1l - (static_cast<double>(tot) - static_cast<double>(rmv)) / static_cast<double>(tot)});
+                                    choices.push_back({choice, 1l - 1l / static_cast<double>(tot)});
                             }
             }
             else if (!a0_tau_itm)
