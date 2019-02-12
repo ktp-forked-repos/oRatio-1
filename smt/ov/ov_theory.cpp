@@ -14,9 +14,9 @@ var ov_theory::new_var(const std::unordered_set<var_value *> &items, const bool 
 {
     assert(!items.empty());
     const var id = assigns.size();
-    assigns.push_back(std::unordered_map<var_value *, var>());
+    std::unordered_map<var_value *, var> val_var;
     if (items.size() == 1)
-        assigns.back().emplace(*items.begin(), TRUE_var);
+        val_var.emplace(*items.begin(), TRUE_var);
     else
     {
         std::vector<lit> lits;
@@ -24,7 +24,7 @@ var ov_theory::new_var(const std::unordered_set<var_value *> &items, const bool 
         for (const auto &i : items)
         {
             const var bv = sat.new_var();
-            assigns.back().emplace(i, bv);
+            val_var.emplace(i, bv);
             lits.push_back(bv);
             bind(bv);
             is_contained_in[bv].insert(id);
@@ -35,6 +35,7 @@ var ov_theory::new_var(const std::unordered_set<var_value *> &items, const bool 
             assert(exct_one);
         }
     }
+    assigns.push_back(val_var);
     return id;
 }
 
@@ -43,12 +44,13 @@ var ov_theory::new_var(const std::vector<var> &vars, const std::vector<var_value
     assert(!vars.empty());
     assert(std::all_of(vars.begin(), vars.end(), [&](var v) { return is_contained_in.find(v) != is_contained_in.end(); }));
     const var id = assigns.size();
-    assigns.push_back(std::unordered_map<var_value *, var>());
+    std::unordered_map<var_value *, var> val_var;
     for (size_t i = 0; i < vars.size(); ++i)
     {
-        assigns.back().emplace(vals.at(i), vars.at(i));
+        val_var.emplace(vals.at(i), vars.at(i));
         is_contained_in.at(vars.at(i)).insert(id);
     }
+    assigns.push_back(val_var);
     return id;
 }
 
