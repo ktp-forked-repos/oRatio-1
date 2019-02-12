@@ -214,7 +214,7 @@ void reusable_resource::new_fact(atom_flaw &f)
             else if (!a1_tau_itm)
             {
                 std::unordered_set<var_value *> a0_vals = get_solver().enum_value(static_cast<var_item *>(a0_tau_itm));
-                if (a0_vals.find(&*a0_tau) != a0_vals.end()) // we store the ordering variables..
+                if (a0_vals.find(&*a1_tau) != a0_vals.end()) // we store the ordering variables..
                     store_variables(atm, *c_atm.first);
             }
         }
