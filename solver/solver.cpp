@@ -37,6 +37,7 @@ void solver::init()
 void solver::solve()
 {
     build_graph(); // we build the causal graph..
+    FIRE_STATE_CHANGED();
 
     while (true)
     {
@@ -163,6 +164,7 @@ bool solver::has_inconsistencies()
             q.push(st.second);
         q.pop();
     }
+    FIRE_STATE_CHANGED();
 
     assert(std::none_of(incs.begin(), incs.end(), [&](flaw *f) { return f->structural; }));
     if (!incs.empty())
@@ -266,8 +268,8 @@ void solver::add_layer()
 
 void solver::increase_accuracy()
 {
-    accuracy++;
     assert(get_sat_core().root_level());
+    accuracy++;
     LOG("current heuristic accuracy: " + std::to_string(accuracy));
 
     // we clean up composite flaws trivial flaws and already solved flaws..
