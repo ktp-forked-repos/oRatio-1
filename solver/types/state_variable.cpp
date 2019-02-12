@@ -176,11 +176,11 @@ void state_variable::new_fact(atom_flaw &f)
     get_core().get_predicate("IntervalPredicate").apply_rule(atm);
     restore_ni();
 
+    expr a0_tau = atm.get(TAU);
+    item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
     for (const auto &c_atm : atoms)
     {
-        expr a0_tau = atm.get(TAU);
         expr a1_tau = c_atm.first->get(TAU);
-        item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
         item *a1_tau_itm = dynamic_cast<var_item *>(&*a1_tau);
         if (a0_tau_itm || a1_tau_itm)
         {
@@ -235,11 +235,11 @@ void state_variable::new_goal(atom_flaw &f)
 {
     atom &atm = f.get_atom();
 
+    expr a0_tau = atm.get(TAU);
+    item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
     for (const auto &c_atm : atoms)
     {
-        expr a0_tau = atm.get(TAU);
         expr a1_tau = c_atm.first->get(TAU);
-        item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
         item *a1_tau_itm = dynamic_cast<var_item *>(&*a1_tau);
         if (a0_tau_itm || a1_tau_itm)
         {

@@ -181,11 +181,11 @@ void reusable_resource::new_fact(atom_flaw &f)
     if (!get_core().get_sat_core().new_clause({lit(f.get_phi(), false), atm.get_sigma()}))
         throw std::runtime_error("the problem is unsolvable");
 
+    expr a0_tau = atm.get(TAU);
+    item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
     for (const auto &c_atm : atoms)
     {
-        expr a0_tau = atm.get(TAU);
         expr a1_tau = c_atm.first->get(TAU);
-        item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
         item *a1_tau_itm = dynamic_cast<var_item *>(&*a1_tau);
         if (a0_tau_itm || a1_tau_itm)
         {
