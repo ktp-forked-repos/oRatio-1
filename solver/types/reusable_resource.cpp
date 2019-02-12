@@ -97,7 +97,7 @@ std::vector<flaw *> reusable_resource::get_flaws()
                         rr_flaw *flw;
                         if (flw_it == rr_flaws.end())
                         {
-                            flw = new rr_flaw(get_solver(), overlapping_atoms);
+                            flw = new rr_flaw(*this, overlapping_atoms);
                             c_flaws.push_back(flw);
                             flaws.push_back(flw);
                         }
@@ -202,69 +202,24 @@ void reusable_resource::new_fact(atom_flaw &f)
                         found = true;
                         break;
                     }
-                if (found)
-                { // we prepare the variables..
-                    arith_expr a0_start = atm.get(START);
-                    arith_expr a0_end = atm.get(END);
-                    arith_expr a1_start = c_atm.first->get(START);
-                    arith_expr a1_end = c_atm.first->get(END);
-                    get_solver().leq(a0_end, a1_start);
-                    get_solver().leq(a1_end, a0_start);
-
-                    std::unordered_set<var_value *> a0_vals = get_solver().enum_value(static_cast<var_item *>(a0_tau_itm));
-                    std::unordered_set<var_value *> a1_vals = get_solver().enum_value(static_cast<var_item *>(a1_tau_itm));
-                    if (a0_vals.size() == 1 || a1_vals.size() == 1)
-                    {
-                        a0_tau_itm->eq(*a1_tau_itm);
-                        a1_tau_itm->eq(*a0_tau_itm);
-                    }
-                    else
-                        for (const auto &v0 : a0_vals)
-                            for (const auto &v1 : a1_vals)
-                                if (v0 != v1)
-                                    get_solver().get_sat_core().new_conj({a0_tau_itm->eq(*static_cast<item *>(v0)), a1_tau_itm->eq(*static_cast<item *>(v1))});
-                }
+                if (found) // we store the ordering variables..
+                    store_variables(atm, *c_atm.first);
             }
             else if (!a0_tau_itm)
             {
                 std::unordered_set<var_value *> a1_vals = get_solver().enum_value(static_cast<var_item *>(a1_tau_itm));
-                if (a1_vals.find(&*a0_tau) != a1_vals.end())
-                { // we prepare the variables..
-                    arith_expr a0_start = atm.get(START);
-                    arith_expr a0_end = atm.get(END);
-                    arith_expr a1_start = c_atm.first->get(START);
-                    arith_expr a1_end = c_atm.first->get(END);
-                    get_solver().leq(a0_end, a1_start);
-                    get_solver().leq(a1_end, a0_start);
-                    (&*a0_tau)->eq(*a1_tau_itm);
-                    a1_tau_itm->eq(*a0_tau);
-                }
+                if (a1_vals.find(&*a0_tau) != a1_vals.end()) // we store the ordering variables..
+                    store_variables(atm, *c_atm.first);
             }
             else if (!a1_tau_itm)
             {
                 std::unordered_set<var_value *> a0_vals = get_solver().enum_value(static_cast<var_item *>(a0_tau_itm));
-                if (a0_vals.find(&*a0_tau) != a0_vals.end())
-                { // we prepare the variables..
-                    arith_expr a0_start = atm.get(START);
-                    arith_expr a0_end = atm.get(END);
-                    arith_expr a1_start = c_atm.first->get(START);
-                    arith_expr a1_end = c_atm.first->get(END);
-                    get_solver().leq(a0_end, a1_start);
-                    get_solver().leq(a1_end, a0_start);
-                    (&*a1_tau)->eq(*a0_tau_itm);
-                    a0_tau_itm->eq(*a1_tau);
-                }
+                if (a0_vals.find(&*a0_tau) != a0_vals.end()) // we store the ordering variables..
+                    store_variables(atm, *c_atm.first);
             }
         }
-        else if (&*a0_tau == &*a1_tau)
-        { // the two atoms are on the same reusable resource..
-            arith_expr a0_start = atm.get(START);
-            arith_expr a0_end = atm.get(END);
-            arith_expr a1_start = c_atm.first->get(START);
-            arith_expr a1_end = c_atm.first->get(END);
-            get_solver().leq(a0_end, a1_start);
-            get_solver().leq(a1_end, a0_start);
-        }
+        else if (&*a0_tau == &*a1_tau) // the two atoms are on the same reusable resource: we store the ordering variables..
+            store_variables(atm, *c_atm.first);
     }
     atoms.push_back({&atm, new rr_atom_listener(*this, atm)});
 
@@ -278,6 +233,16 @@ void reusable_resource::new_fact(atom_flaw &f)
         else // the 'tau' parameter is a constant..
             to_check.insert(&*c_scope);
     }
+}
+
+void reusable_resource::store_variables(atom &atm0, atom &atm1)
+{
+    arith_expr a0_start = atm0.get(START);
+    arith_expr a0_end = atm0.get(END);
+    arith_expr a1_start = atm1.get(START);
+    arith_expr a1_end = atm1.get(END);
+    leqs[&atm0][&atm1] = get_solver().leq(a0_end, a1_start)->l;
+    leqs[&atm1][&atm0] = get_solver().leq(a1_end, a0_start)->l;
 }
 
 void reusable_resource::new_goal(atom_flaw &) { throw std::logic_error("it is not possible to define goals on a reusable resource.."); }
@@ -305,7 +270,7 @@ void reusable_resource::rr_atom_listener::something_changed()
     }
 }
 
-reusable_resource::rr_flaw::rr_flaw(solver &slv, const std::set<atom *> &atms) : flaw(slv, smart_type::get_resolvers(slv, atms)), overlapping_atoms(atms) {}
+reusable_resource::rr_flaw::rr_flaw(reusable_resource &rr, const std::set<atom *> &atms) : flaw(rr.get_solver(), smart_type::get_resolvers(slv, atms)), rr(rr), overlapping_atoms(atms) {}
 reusable_resource::rr_flaw::~rr_flaw() {}
 
 #ifdef BUILD_GUI
@@ -326,61 +291,34 @@ std::vector<std::pair<lit, double>> reusable_resource::rr_flaw::evaluate()
         arith_expr a1_start = as[1]->get(START);
         arith_expr a1_end = as[1]->get(END);
 
-        bool_expr a0_before_a1 = slv.leq(a0_end, a1_start);
-        if (slv.bool_value(a0_before_a1) != False)
+        lit a0_before_a1 = rr.leqs.at(as[0]).at(as[1]);
+        if (slv.get_sat_core().value(a0_before_a1) != False)
         {
             rational work = (slv.arith_value(a1_end).get_rational() - slv.arith_value(a1_start).get_rational()) * (slv.arith_value(a0_end).get_rational() - slv.arith_value(a1_start).get_rational());
-            choices.push_back({a0_before_a1->l, 1l - 1l / (static_cast<double>(work.numerator()) / work.denominator())});
+            choices.push_back({a0_before_a1, 1l - 1l / (static_cast<double>(work.numerator()) / work.denominator())});
         }
-        bool_expr a1_before_a0 = slv.leq(a1_end, a0_start);
-        if (slv.bool_value(a1_before_a0) != False)
+        lit a1_before_a0 = rr.leqs.at(as[1]).at(as[0]);
+        if (slv.get_sat_core().value(a1_before_a0) != False)
         {
             rational work = (slv.arith_value(a0_end).get_rational() - slv.arith_value(a0_start).get_rational()) * (slv.arith_value(a1_end).get_rational() - slv.arith_value(a0_start).get_rational());
-            choices.push_back({a1_before_a0->l, 1l - 1l / (static_cast<double>(work.numerator()) / work.denominator())});
+            choices.push_back({a1_before_a0, 1l - 1l / (static_cast<double>(work.numerator()) / work.denominator())});
         }
 
         expr a0_tau = as[0]->get(TAU);
         expr a1_tau = as[1]->get(TAU);
         item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
         item *a1_tau_itm = dynamic_cast<var_item *>(&*a1_tau);
-        if (a0_tau_itm || a1_tau_itm)
+        if (a0_tau_itm)
         {
-            if (a0_tau_itm && a1_tau_itm)
-            {
-                // we have two non-singleton variables..
-                std::unordered_set<var_value *> a0_vals = slv.enum_value(static_cast<var_item *>(a0_tau_itm));
-                std::unordered_set<var_value *> a1_vals = slv.enum_value(static_cast<var_item *>(a1_tau_itm));
-                size_t tot = a0_vals.size() * a1_vals.size();
-                if (a0_vals.size() == 1 || a1_vals.size() == 1)
-                {
-                    lit choice(a0_tau_itm->eq(*a1_tau_itm), false);
-                    if (slv.get_sat_core().value(choice) != False)
-                        choices.push_back({choice, 1l - (static_cast<double>(tot) - 1) / static_cast<double>(tot)});
-                }
-                else
-                    for (const auto &v0 : a0_vals)
-                        for (const auto &v1 : a1_vals)
-                            if (v0 != v1)
-                            {
-                                lit choice(slv.get_sat_core().new_conj({a0_tau_itm->eq(*static_cast<item *>(v0)), a1_tau_itm->eq(*static_cast<item *>(v1))}));
-                                if (slv.get_sat_core().value(choice) != False)
-                                    choices.push_back({choice, 1l - 1l / static_cast<double>(tot)});
-                            }
-            }
-            else if (!a0_tau_itm)
-            {
-                size_t tot = slv.enum_value(static_cast<var_item *>(a1_tau_itm)).size();
-                lit choice((&*a0_tau)->eq(*a1_tau_itm), false);
-                if (slv.get_sat_core().value(choice) != False)
-                    choices.push_back({choice, 1 - (static_cast<double>(tot) - 1l) / static_cast<double>(tot)});
-            }
-            else if (!a1_tau_itm)
-            {
-                size_t tot = slv.enum_value(static_cast<var_item *>(a0_tau_itm)).size();
-                lit choice((&*a1_tau)->eq(*a0_tau_itm), false);
-                if (slv.get_sat_core().value(choice) != False)
-                    choices.push_back({choice, 1 - (static_cast<double>(tot) - 1l) / static_cast<double>(tot)});
-            }
+            std::unordered_set<var_value *> a0_vals = slv.enum_value(static_cast<var_item *>(a0_tau_itm));
+            for (const auto &v0 : a0_vals)
+                choices.push_back({slv.get_ov_theory().allows(static_cast<var_item *>(a0_tau_itm)->ev, *v0), 1l - 1l / static_cast<double>(a0_vals.size())});
+        }
+        if (a1_tau_itm)
+        {
+            std::unordered_set<var_value *> a1_vals = slv.enum_value(static_cast<var_item *>(a1_tau_itm));
+            for (const auto &v1 : a1_vals)
+                choices.push_back({slv.get_ov_theory().allows(static_cast<var_item *>(a1_tau_itm)->ev, *v1), 1l - 1l / static_cast<double>(a1_vals.size())});
         }
     }
     return choices;
@@ -396,46 +334,33 @@ void reusable_resource::rr_flaw::compute_resolvers()
         arith_expr a1_start = as[1]->get(START);
         arith_expr a1_end = as[1]->get(END);
 
-        bool_expr a0_before_a1 = slv.leq(a0_end, a1_start);
-        if (slv.bool_value(a0_before_a1) != False)
-            add_resolver(*new order_resolver(slv, a0_before_a1->l.get_var(), *this, *as[0], *as[1]));
-        bool_expr a1_before_a0 = slv.leq(a1_end, a0_start);
-        if (slv.bool_value(a1_before_a0) != False)
-            add_resolver(*new order_resolver(slv, a1_before_a0->l.get_var(), *this, *as[1], *as[0]));
+        lit a0_before_a1 = rr.leqs.at(as[0]).at(as[1]);
+        if (slv.get_sat_core().value(a0_before_a1) != False)
+            add_resolver(*new order_resolver(*this, a0_before_a1.get_var(), *as[0], *as[1]));
+        lit a1_before_a0 = rr.leqs.at(as[1]).at(as[0]);
+        if (slv.get_sat_core().value(a1_before_a0) != False)
+            add_resolver(*new order_resolver(*this, a1_before_a0.get_var(), *as[1], *as[0]));
 
         expr a0_tau = as[0]->get(TAU);
         expr a1_tau = as[1]->get(TAU);
         item *a0_tau_itm = dynamic_cast<var_item *>(&*a0_tau);
         item *a1_tau_itm = dynamic_cast<var_item *>(&*a1_tau);
-        if (a0_tau_itm || a1_tau_itm)
+        if (a0_tau_itm)
         {
-            if (a0_tau_itm && a1_tau_itm)
-            {
-                // we have two non-singleton variables..
-                std::unordered_set<var_value *> a0_vals = slv.enum_value(static_cast<var_item *>(a0_tau_itm));
-                std::unordered_set<var_value *> a1_vals = slv.enum_value(static_cast<var_item *>(a1_tau_itm));
-                size_t tot = a0_vals.size() * a1_vals.size();
-                if (a0_vals.size() == 1 || a1_vals.size() == 1)
-                    add_resolver(*new displace_resolver(slv, *this, *as[0], *as[1], lit(a0_tau_itm->eq(*a1_tau_itm), false)));
-                else
-                    for (const auto &v0 : a0_vals)
-                        for (const auto &v1 : a1_vals)
-                            if (v0 != v1)
-                            {
-                                lit choice(slv.get_sat_core().new_conj({a0_tau_itm->eq(*static_cast<item *>(v0)), a1_tau_itm->eq(*static_cast<item *>(v1))}));
-                                if (slv.get_sat_core().value(choice) != False)
-                                    add_resolver(*new place_resolver(slv, *this, *as[0], *as[1], choice));
-                            }
-            }
-            else if (!a0_tau_itm)
-                add_resolver(*new displace_resolver(slv, *this, *as[0], *as[1], lit(a0_tau->eq(*a1_tau_itm), false)));
-            else if (!a1_tau_itm)
-                add_resolver(*new displace_resolver(slv, *this, *as[0], *as[1], lit(a1_tau->eq(*a0_tau_itm), false)));
+            std::unordered_set<var_value *> a0_vals = slv.enum_value(static_cast<var_item *>(a0_tau_itm));
+            for (const auto &v0 : a0_vals)
+                add_resolver(*new place_resolver(*this, *as[0], *static_cast<item *>(v0)));
+        }
+        if (a1_tau_itm)
+        {
+            std::unordered_set<var_value *> a1_vals = slv.enum_value(static_cast<var_item *>(a1_tau_itm));
+            for (const auto &v1 : a1_vals)
+                add_resolver(*new place_resolver(*this, *as[1], *static_cast<item *>(v1)));
         }
     }
 }
 
-reusable_resource::order_resolver::order_resolver(solver &slv, const var &r, rr_flaw &f, const atom &before, const atom &after) : resolver(slv, r, 0, f), before(before), after(after) {}
+reusable_resource::order_resolver::order_resolver(rr_flaw &flw, const smt::var &r, const atom &before, const atom &after) : resolver(flw.slv, r, 0, flw), before(before), after(after) {}
 reusable_resource::order_resolver::~order_resolver() {}
 
 #ifdef BUILD_GUI
@@ -449,32 +374,17 @@ void reusable_resource::order_resolver::apply()
 {
 }
 
-reusable_resource::place_resolver::place_resolver(solver &slv, rr_flaw &f, const atom &a0, const atom &a1, const lit &neq_lit) : resolver(slv, 0, f), a0(a0), a1(a1), neq_lit(neq_lit) {}
+reusable_resource::place_resolver::place_resolver(rr_flaw &flw, atom &atm, item &itm) : resolver(slv, slv.get_ov_theory().allows(dynamic_cast<var_item *>(&*atm.get(TAU))->ev, itm), 0, flw), atm(atm), itm(itm) {}
 reusable_resource::place_resolver::~place_resolver() {}
 
 #ifdef BUILD_GUI
 std::string reusable_resource::place_resolver::get_label() const
 {
-    return "ρ" + std::to_string(get_rho()) + " pl σ" + std::to_string(a0.get_sigma()) + ".τ && σ" + std::to_string(a1.get_sigma()) + ".τ";
+    return "ρ" + std::to_string(get_rho()) + " pl σ" + std::to_string(atm.get_sigma()) + ".τ";
 }
 #endif
 
 void reusable_resource::place_resolver::apply()
 {
-}
-
-reusable_resource::displace_resolver::displace_resolver(solver &slv, rr_flaw &f, const atom &a0, const atom &a1, const lit &neq_lit) : resolver(slv, 0, f), a0(a0), a1(a1), neq_lit(neq_lit) {}
-reusable_resource::displace_resolver::~displace_resolver() {}
-
-#ifdef BUILD_GUI
-std::string reusable_resource::displace_resolver::get_label() const
-{
-    return "ρ" + std::to_string(get_rho()) + " displ σ" + std::to_string(a0.get_sigma()) + ".τ != σ" + std::to_string(a1.get_sigma()) + ".τ";
-}
-#endif
-
-void reusable_resource::displace_resolver::apply()
-{
-    slv.get_sat_core().new_clause({lit(get_rho(), false), neq_lit});
 }
 } // namespace ratio

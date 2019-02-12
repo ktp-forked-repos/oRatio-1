@@ -26,6 +26,7 @@ private:
   void new_predicate(predicate &) override { throw std::logic_error("it is not possible to define predicates on a reusable resource.."); }
   void new_fact(atom_flaw &f) override;
   void new_goal(atom_flaw &f) override;
+  void store_variables(atom &atm0, atom &atm1);
 
   // the reusable-resource constructor..
   class rr_constructor : public constructor
@@ -70,7 +71,7 @@ private:
     friend class reusable_resource;
 
   public:
-    rr_flaw(solver &slv, const std::set<atom *> &overlapping_atoms);
+    rr_flaw(reusable_resource &rr, const std::set<atom *> &overlapping_atoms);
     rr_flaw(rr_flaw &&) = delete;
     virtual ~rr_flaw();
 
@@ -83,6 +84,7 @@ private:
     void compute_resolvers() override;
 
   private:
+    reusable_resource &rr;
     const std::set<atom *> overlapping_atoms;
   };
 
@@ -90,7 +92,7 @@ private:
   class order_resolver : public resolver
   {
   public:
-    order_resolver(solver &slv, const smt::var &r, rr_flaw &f, const atom &before, const atom &after);
+    order_resolver(rr_flaw &f, const smt::var &r, const atom &before, const atom &after);
     order_resolver(const order_resolver &that) = delete;
     virtual ~order_resolver();
 
@@ -106,11 +108,11 @@ private:
     const atom &after;
   };
 
-  // a resolver for placing atoms on specific instances..
+  // a resolver for placing atoms on a specific state-variable..
   class place_resolver : public resolver
   {
   public:
-    place_resolver(solver &slv, rr_flaw &f, const atom &a0, const atom &a1, const smt::lit &neq_lit);
+    place_resolver(rr_flaw &flw, atom &atm, item &itm);
     place_resolver(const place_resolver &that) = delete;
     virtual ~place_resolver();
 
@@ -122,34 +124,13 @@ private:
     void apply() override;
 
   private:
-    const atom &a0;
-    const atom &a1;
-    const smt::lit neq_lit;
-  };
-
-  // a resolver for displacing atoms..
-  class displace_resolver : public resolver
-  {
-  public:
-    displace_resolver(solver &slv, rr_flaw &f, const atom &a0, const atom &a1, const smt::lit &neq_lit);
-    displace_resolver(const displace_resolver &that) = delete;
-    virtual ~displace_resolver();
-
-#ifdef BUILD_GUI
-    std::string get_label() const override;
-#endif
-
-  private:
-    void apply() override;
-
-  private:
-    const atom &a0;
-    const atom &a1;
-    const smt::lit neq_lit;
+    atom &atm;
+    item &itm;
   };
 
 private:
   std::set<item *> to_check;                                // the reusable resources to check for inconsistencies..
+  std::map<atom *, std::map<atom *, smt::lit>> leqs;        // all the possible ordering constraints..
   std::vector<std::pair<atom *, rr_atom_listener *>> atoms; // the reusable resources' atoms and their listeners..
   std::map<std::set<atom *>, rr_flaw *> rr_flaws;           // the reusable resource flaws found so far..
 };

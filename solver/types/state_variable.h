@@ -22,6 +22,7 @@ private:
   void new_predicate(predicate &pred) override;
   void new_fact(atom_flaw &f) override;
   void new_goal(atom_flaw &f) override;
+  void store_variables(atom &atm0, atom &atm1);
 
   // the state-variable constructor..
   class sv_constructor : public constructor
@@ -57,7 +58,7 @@ private:
     friend class state_variable;
 
   public:
-    sv_flaw(solver &slv, const std::set<atom *> &overlapping_atoms);
+    sv_flaw(state_variable &sv, const std::set<atom *> &overlapping_atoms);
     sv_flaw(sv_flaw &&) = delete;
     virtual ~sv_flaw();
 
@@ -70,6 +71,7 @@ private:
     void compute_resolvers() override;
 
   private:
+    state_variable &sv;
     const std::set<atom *> overlapping_atoms;
   };
 
@@ -77,7 +79,7 @@ private:
   class order_resolver : public resolver
   {
   public:
-    order_resolver(solver &slv, const smt::var &r, sv_flaw &f, const atom &before, const atom &after);
+    order_resolver(sv_flaw &flw, const smt::var &r, const atom &before, const atom &after);
     order_resolver(const order_resolver &that) = delete;
     virtual ~order_resolver();
 
@@ -93,11 +95,11 @@ private:
     const atom &after;
   };
 
-  // a resolver for displacing atoms..
+  // a resolver for placing atoms on a specific state-variable..
   class place_resolver : public resolver
   {
   public:
-    place_resolver(solver &slv, sv_flaw &f, const atom &a0, const atom &a1, const smt::lit &neq_lit);
+    place_resolver(sv_flaw &flw, atom &atm, item &itm);
     place_resolver(const place_resolver &that) = delete;
     virtual ~place_resolver();
 
@@ -109,35 +111,14 @@ private:
     void apply() override;
 
   private:
-    const atom &a0;
-    const atom &a1;
-    const smt::lit neq_lit;
-  };
-
-  // a resolver for displacing atoms..
-  class displace_resolver : public resolver
-  {
-  public:
-    displace_resolver(solver &slv, sv_flaw &f, const atom &a0, const atom &a1, const smt::lit &neq_lit);
-    displace_resolver(const displace_resolver &that) = delete;
-    virtual ~displace_resolver();
-
-#ifdef BUILD_GUI
-    std::string get_label() const override;
-#endif
-
-  private:
-    void apply() override;
-
-  private:
-    const atom &a0;
-    const atom &a1;
-    const smt::lit neq_lit;
+    atom &atm;
+    item &itm;
   };
 
 private:
   std::set<item *> to_check;                                // the state-variable instances whose atoms have changed..
-  std::vector<std::pair<atom *, sv_atom_listener *>> atoms; // we store, for each atom, its atom listener..
+  std::map<atom *, std::map<atom *, smt::lit>> leqs;        // all the possible ordering constraints..
   std::map<std::set<atom *>, sv_flaw *> sv_flaws;           // the state-variable flaws found so far..
+  std::vector<std::pair<atom *, sv_atom_listener *>> atoms; // we store, for each atom, its atom listener..
 };
 } // namespace ratio
