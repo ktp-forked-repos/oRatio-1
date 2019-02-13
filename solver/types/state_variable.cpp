@@ -45,7 +45,7 @@ std::vector<flaw *> state_variable::get_flaws()
                             if (to_check.find(static_cast<item *>(val)) != to_check.end())
                                 sv_instances[static_cast<item *>(val)].push_back(atm.first);
                     }
-                    else
+                    else if (to_check.find(static_cast<item *>(&*c_scope)) != to_check.end())
                         sv_instances[static_cast<item *>(&*c_scope)].push_back(atm.first);
                 }
 
