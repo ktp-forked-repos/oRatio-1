@@ -73,11 +73,14 @@ void composite_flaw::compute_resolvers()
         }
         smt::var cnj_var = slv.get_sat_core().new_conj(cnj);
 #ifdef CHECK_COMPOSITE_FLAWS
+        check_lits.push_back(cnj_var);
         if (slv.get_sat_core().check(check_lits))
+            add_resolver(*new composite_resolver(slv, *this, cnj_var, cst, rp));
+        check_lits.pop_back();
 #else
         if (slv.get_sat_core().value(cnj_var) != smt::False)
-#endif
             add_resolver(*new composite_resolver(slv, *this, cnj_var, cst, rp));
+#endif
     }
 }
 
@@ -110,10 +113,10 @@ void composite_flaw::composite_resolver::apply()
     if (precs.size() > slv.accuracy) // we create sets having the size of the accuracy..
     {
         std::vector<std::vector<flaw *>> fss = combinations(std::vector<flaw *>(precs.begin(), precs.end()), slv.accuracy);
-        for (const auto &fs : fss) // we create a new super flaw for each of the possible combinations..
+        for (const auto &fs : fss) // we create a new composite flaw for each of the possible combinations..
             slv.new_flaw(*new composite_flaw(slv, this, fs));
     }
-    else if (!precs.empty()) // we create a new super flaw including all the preconditions of this resolver..
+    else if (!precs.empty()) // we create a new composite flaw including all the preconditions of this resolver..
         slv.new_flaw(*new composite_flaw(slv, this, precs));
 }
 } // namespace ratio
