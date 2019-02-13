@@ -108,7 +108,8 @@ void composite_flaw::composite_resolver::apply()
     std::vector<flaw *> precs;
     for (const auto &r : resolvers)
         for (const auto &pre : r->get_preconditions())
-            precs.push_back(pre);
+            if (slv.get_sat_core().value(pre->get_phi()) != smt::True) // we don't need to consider those flaws which are already active..
+                precs.push_back(pre);
 
     if (precs.size() > slv.accuracy) // we create sets having the size of the accuracy..
     {
