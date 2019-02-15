@@ -56,21 +56,20 @@ void atom_flaw::compute_resolvers()
             if (&*i == &atm) // the current atom cannot unify with itself..
                 continue;
 
-            // this is the target (i.e. the atom we are checking for unification)..
+            // this is the target atom (i.e. the atom we are checking for unification)..
             atom &t_atm = static_cast<atom &>(*i);
+            if (slv.get_sat_core().value(t_atm.get_sigma()) == False || // the target atom is unified with some other atom..
+                !atm.equates(t_atm))                                    // the atom does not equate with the target atom..
+                continue;
 
             // this is the target flaw (i.e. the one we are checking for unification) and cannot be in the current flaw's causes' effects..
             atom_flaw &t_flaw = slv.get_reason(t_atm);
-
-            if (!t_flaw.is_expanded() ||                                // the target flaw must hav been already expanded..
-                ancestors.find(&t_flaw) != ancestors.end() ||           // unifying with the target atom would introduce cyclic causality..
-                slv.get_sat_core().value(t_atm.get_sigma()) == False || // the target atom is unified with some other atom..
-                !atm.equates(t_atm))                                    // the atom does not equate with the target target..
+            if (!t_flaw.is_expanded() ||                    // the target flaw has not yet been expanded..
+                ancestors.find(&t_flaw) != ancestors.end()) // unifying with the target atom would introduce cyclic causality..
                 continue;
 
             // the equality propositional variable..
             var eq_v = atm.eq(t_atm);
-
             if (slv.get_sat_core().value(eq_v) == False) // the two atoms cannot unify, hence, we skip this instance..
                 continue;
 
