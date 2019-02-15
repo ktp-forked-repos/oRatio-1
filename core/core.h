@@ -67,8 +67,8 @@ public:
   smt::lra_theory &get_lra_theory() { return lra_th; } // returns the linear-real-arithmetic theory..
   smt::ov_theory &get_ov_theory() { return ov_th; }    // returns the object-variable theory..
 
-  void read(const std::string &script);
-  void read(const std::vector<std::string> &files);
+  void read(const std::string &script);             // reads the given riddle script..
+  void read(const std::vector<std::string> &files); // reads the given collection of files containing riddle code..
 
   bool_expr new_bool();
   bool_expr new_bool(const bool &val);
