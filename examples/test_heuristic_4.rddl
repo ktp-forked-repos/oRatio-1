@@ -1,0 +1,27 @@
+class Location {
+
+    real id;
+
+    Location(real id) : id(id) {}
+}
+
+class Truck : StateVariable {
+
+    real id;
+
+    Truck(real id) : id(id) {}
+
+    predicate At(Location l) { duration >= 1; goal dt = new DriveTo(l:l, end:start); }
+    
+    predicate DriveTo(Location l) { duration >= 1; goal at = new At(end:start); }
+}
+
+Truck tru1 = new Truck(1.0);
+
+Location l1 = new Location(1.0);
+Location l2 = new Location(2.0);
+Location l3 = new Location(3.0);
+
+fact at_tru1_l1 = new tru1.At(l:l1, start:origin);
+goal at_tru1_l2 = new tru1.At(l:l2);
+goal at_tru1_l3 = new tru1.At(l:l3);
