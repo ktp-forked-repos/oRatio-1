@@ -114,10 +114,8 @@ private:
     std::unordered_set<flaw *> new_flaws;                      // the just activated flaws..
     std::unordered_set<flaw *> solved_flaws;                   // the just solved flaws..
   };
-  std::vector<layer> trail; // the list of applied resolvers, with the associated changes made, in chronological order..
-#ifdef GRAPH_PRUNING
-  smt::var gamma; // this variable represents the validity of the current graph..
-#endif
+  std::vector<layer> trail;                                // the list of applied resolvers, with the associated changes made, in chronological order..
+  smt::var gamma;                                          // this variable represents the validity of the current graph..
   unsigned short accuracy = MIN_ACCURACY;                  // the current heuristic accuracy..
   static const unsigned short max_accuracy = MAX_ACCURACY; // the maximum heuristic accuracy..
 #ifdef BUILD_GUI

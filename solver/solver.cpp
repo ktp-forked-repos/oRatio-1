@@ -129,19 +129,19 @@ void solver::build_graph()
 #endif
     }
 
-#ifdef GRAPH_PRUNING
     // we create a new graph var..
     gamma = get_sat_core().new_var();
 #ifdef BUILD_GUI
     std::cout << "graph var is: γ" << std::to_string(gamma) << std::endl;
 #endif
+#ifdef GRAPH_PRUNING
     // these flaws have not been expanded, hence, cannot have a solution..
     for (const auto &f : flaw_q)
         get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
+#endif
     // we use the new graph var to allow search within the current graph..
     if (!get_sat_core().assume(gamma) || !get_sat_core().check())
         throw std::runtime_error("the problem is unsolvable");
-#endif
 }
 
 bool solver::has_inconsistencies()
@@ -253,17 +253,19 @@ void solver::add_layer()
                 expand_flaw(*f);
     }
 
-#ifdef GRAPH_PRUNING
     // we create a new graph var..
     gamma = get_sat_core().new_var();
-    LOG("graph var is: γ" << std::to_string(gamma));
+#ifdef BUILD_GUI
+    std::cout << "graph var is: γ" << std::to_string(gamma) << std::endl;
+#endif
+#ifdef GRAPH_PRUNING
     // these flaws have not been expanded, hence, cannot have a solution..
     for (const auto &f : flaw_q)
         get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
+#endif
     // we use the new graph var to allow search within the new graph..
     if (!get_sat_core().assume(gamma) || !get_sat_core().check())
         throw std::runtime_error("the problem is unsolvable");
-#endif
 }
 
 void solver::increase_accuracy()
