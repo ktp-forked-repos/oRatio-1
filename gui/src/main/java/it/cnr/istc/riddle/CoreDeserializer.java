@@ -107,7 +107,8 @@ public class CoreDeserializer implements JsonDeserializer<Core> {
                         JsonObject par_obj = par_el.getAsJsonObject();
                         pars.put(par_obj.getAsJsonPrimitive("name").getAsString(), toItem(items, atoms, par_obj));
                     }
-                final Atom atom = new Atom(core, p, Atom.AtomState.valueOf(atm_obj.get("state").getAsString()), pars);
+                final Atom atom = new Atom(core, p, atm_obj.getAsJsonPrimitive("sigma").getAsLong(),
+                        Atom.AtomState.valueOf(atm_obj.getAsJsonPrimitive("state").getAsString()), pars);
                 p.instances.add(atom);
 
                 Queue<Type> q = new ArrayDeque<>();

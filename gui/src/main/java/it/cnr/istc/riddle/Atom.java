@@ -26,11 +26,13 @@ import java.util.stream.Stream;
  */
 public class Atom extends Item {
 
+    private final long sigma;
     private final AtomState state;
 
-    Atom(Core core, Predicate predicate, final AtomState state, final Map<String, Item> pars) {
+    Atom(Core core, Predicate predicate, final long sigma, final AtomState state, final Map<String, Item> pars) {
         super(core, predicate);
         exprs.putAll(pars);
+        this.sigma = sigma;
         this.state = state;
     }
 
@@ -53,7 +55,7 @@ public class Atom extends Item {
 
     @Override
     public String toString() {
-        return type.getName() + "(" + exprs.entrySet().stream().map(expr -> {
+        return "σ" + sigma + " " + type.getName() + "(" + exprs.entrySet().stream().map(expr -> {
             switch (expr.getValue().getType().getName()) {
             case Core.BOOL:
                 return expr.getKey() + " = " + ((Item.BoolItem) expr.getValue()).getValue();
