@@ -94,6 +94,8 @@ private:
   static const smt::rational evaluate(const std::vector<flaw *> &fs); // evaluates, together, the given vector of flaws..
   flaw *select_flaw();                                                // selects the most promising (i.e. the most expensive one) flaw from the 'flaws' set, returns a nullptr if there are no more active flaws..
 
+  std::vector<smt::lit> get_trail() const; // returns the current trail: a vector of literals representing the decisions, in chronological order, that have been taken so far..
+
 private:
   resolver *res = nullptr;                                    // the current resolver (will go straight into the trail)..
   std::unordered_set<flaw *> flaws;                           // the currently active flaws..

@@ -648,6 +648,14 @@ flaw *solver::select_flaw()
     return f_next;
 }
 
+std::vector<smt::lit> solver::get_trail() const
+{
+    std::vector<smt::lit> c_trail(trail.size());
+    for (auto i = trail.begin(); i != trail.end(); ++i)
+        c_trail.push_back(i->r->get_rho());
+    return c_trail;
+}
+
 #ifdef BUILD_GUI
 void solver::fire_new_flaw(const flaw &f) const
 {
