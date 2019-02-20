@@ -94,10 +94,13 @@ private:
   static const smt::rational evaluate(const std::vector<flaw *> &fs); // evaluates, together, the given vector of flaws..
   flaw *select_flaw();                                                // selects the most promising (i.e. the most expensive one) flaw from the 'flaws' set, returns a nullptr if there are no more active flaws..
 
+  void take_decision(const smt::lit &ch);
+  void next();
+  void record(const std::vector<smt::lit> &clause) override;
   std::vector<smt::lit> get_trail() const; // returns the current trail: a vector of literals representing the decisions, in chronological order, that have been taken so far..
 
 private:
-  resolver *res = nullptr;                                    // the current resolver (will go straight into the trail)..
+  resolver *res = nullptr;                                    // the current resolver (i.e. the cause for the new flaws)..
   std::unordered_set<flaw *> flaws;                           // the currently active flaws..
   std::vector<flaw *> pending_flaws;                          // the currently pending (i.e. those that have not yet been initialized) flaws..
   std::unordered_map<smt::var, std::vector<flaw *>> phis;     // the phi variables (propositional variable to flaws) of the flaws..
@@ -108,9 +111,9 @@ private:
   struct layer
   {
 
-    layer(resolver *const r) : r(r) {}
+    layer(const smt::lit &dec) : decision(dec) {}
 
-    resolver *const r;                                         // the resolver which introduced the new layer..
+    const smt::lit decision;                                   // the decision which introduced the new layer..
     std::unordered_map<resolver *, smt::rational> old_r_costs; // the old estimated resolvers' costs..
     std::unordered_map<flaw *, smt::rational> old_f_costs;     // the old estimated flaws' costs..
     std::unordered_set<flaw *> new_flaws;                      // the just activated flaws..

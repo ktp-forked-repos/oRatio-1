@@ -21,7 +21,7 @@ public:
 
 protected:
   void bind(const var &v);
-  void record(const std::vector<lit> &clause);
+  virtual void record(const std::vector<lit> &clause);
 
 private:
   /**

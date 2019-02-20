@@ -121,24 +121,20 @@ std::vector<flaw *> reusable_resource::get_flaws()
                     switch (eval.size())
                     {
                     case 0: // we have an unsolvable flaw: we backtrack..
+                        next();
+                        // we check for further flaws..
+                        goto sched_loop;
+                    case 1: // we have a deterministic flaw: we learn something from it..
                     {
-                        if (get_solver().get_sat_core().root_level())
-                            throw std::runtime_error("the problem is unsolvable");
-                        std::vector<smt::lit> trail = get_trail();
-                        std::vector<smt::lit> no_good(trail.rbegin(), trail.rend());
-                        no_good[0] = !no_good[0];
-                        get_solver().get_sat_core().pop();
-                        record(no_good);
-                        if (!get_solver().get_sat_core().check())
-                            throw std::runtime_error("the problem is unsolvable");
-                        // we exit from the main scheduling loop..
+                        std::vector<smt::lit> learnt = get_trail();
+                        for (size_t i = 0; i < learnt.size(); i++)
+                            learnt[i] = !learnt[i];
+                        learnt.push_back(learnt[0]);
+                        learnt[0] = eval.at(0).first;
+                        record(learnt);
+                        // we check for further flaws..
                         goto sched_loop;
                     }
-                    case 1: // we have a deterministic flaw..
-                        if (!get_solver().get_sat_core().assume(eval.at(0).first) || !get_solver().get_sat_core().check())
-                            throw std::runtime_error("the problem is unsolvable");
-                        // we exit from the main scheduling loop..
-                        goto sched_loop;
                     default: // we have to take a decision..
                         double bst_commit = std::numeric_limits<double>::infinity();
                         for (const auto &evl : eval)
@@ -157,16 +153,7 @@ std::vector<flaw *> reusable_resource::get_flaws()
                 }
 
                 // we select the best choice (i.e. the least committing one) from those available for the best flaw..
-                lit bst_choice;
-                double bst_commit = std::numeric_limits<double>::infinity();
-                for (const auto &evl : bst_flw)
-                    if (evl.second < bst_commit)
-                    {
-                        bst_choice = evl.first;
-                        bst_commit = evl.second;
-                    }
-                if (!get_solver().get_sat_core().assume(bst_choice) || !get_solver().get_sat_core().check())
-                    throw std::runtime_error("the problem is unsolvable");
+                take_decision(std::min_element(bst_flw.begin(), bst_flw.end(), [](std::pair<lit, double> const &ch0, std::pair<lit, double> const &ch1) { return ch0.second < ch1.second; })->first);
             }
         }
         return flaws;

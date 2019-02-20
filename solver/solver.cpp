@@ -75,11 +75,8 @@ void solver::solve()
                 LOG(res->get_label());
                 FIRE_CURRENT_RESOLVER(*res);
 
-                // we apply the resolver..
-                if (!get_sat_core().assume(res->rho) || !get_sat_core().check())
-                    throw std::runtime_error("the problem is unsolvable");
+                take_decision(res->rho);
 
-                FIRE_STATE_CHANGED();
                 res = nullptr;
 
 #ifdef GRAPH_PRUNING
@@ -98,11 +95,7 @@ void solver::solve()
             }
         }
         else if (!has_inconsistencies()) // we run out of flaws, we check for inconsistencies one last time..
-        {
-            // Hurray!! we have found a solution..
-            FIRE_STATE_CHANGED();
-            return;
-        }
+            return;                      // Hurray!! we have found a solution..
     }
 }
 
@@ -132,7 +125,7 @@ void solver::build_graph()
     // we create a new graph var..
     gamma = get_sat_core().new_var();
 #ifdef BUILD_GUI
-    std::cout << "graph var is: γ" << std::to_string(gamma) << std::endl;
+    LOG("graph var is: γ" << std::to_string(gamma));
 #endif
 #ifdef GRAPH_PRUNING
     // these flaws have not been expanded, hence, cannot have a solution..
@@ -140,8 +133,7 @@ void solver::build_graph()
         get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
 #endif
     // we use the new graph var to allow search within the current graph..
-    if (!get_sat_core().assume(gamma) || !get_sat_core().check())
-        throw std::runtime_error("the problem is unsolvable");
+    take_decision(gamma);
 }
 
 bool solver::has_inconsistencies()
@@ -164,7 +156,6 @@ bool solver::has_inconsistencies()
             q.push(st.second);
         q.pop();
     }
-    FIRE_STATE_CHANGED();
 
     assert(std::none_of(incs.begin(), incs.end(), [&](flaw *f) { return f->structural; }));
     if (!incs.empty())
@@ -256,7 +247,7 @@ void solver::add_layer()
     // we create a new graph var..
     gamma = get_sat_core().new_var();
 #ifdef BUILD_GUI
-    std::cout << "graph var is: γ" << std::to_string(gamma) << std::endl;
+    LOG("graph var is: γ" << std::to_string(gamma));
 #endif
 #ifdef GRAPH_PRUNING
     // these flaws have not been expanded, hence, cannot have a solution..
@@ -264,8 +255,7 @@ void solver::add_layer()
         get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
 #endif
     // we use the new graph var to allow search within the new graph..
-    if (!get_sat_core().assume(gamma) || !get_sat_core().check())
-        throw std::runtime_error("the problem is unsolvable");
+    take_decision(gamma);
 }
 
 void solver::increase_accuracy()
@@ -335,12 +325,8 @@ void solver::check_graph()
     }
     pending_flaws.clear();
     while (get_sat_core().root_level())
-        if (get_sat_core().value(gamma) == Undefined)
-        {
-            // we have learnt a unit clause! thus, we reassume the graph var..
-            if (!get_sat_core().assume(gamma) || !get_sat_core().check())
-                throw unsolvable_exception();
-        }
+        if (get_sat_core().value(gamma) == Undefined) // we have learnt a unit clause! thus, we reassume the graph var..
+            take_decision(gamma);
         else
         {
             assert(get_sat_core().value(gamma) == False);
@@ -459,16 +445,7 @@ bool solver::check(std::vector<lit> &cnfl)
     return true;
 }
 
-void solver::push()
-{
-    // we push the given resolver into the trail..
-    trail.push_back(layer(res));
-    if (res)
-    { // we just solved the resolver's effect..
-        trail.back().solved_flaws.insert(&res->effect);
-        flaws.erase(&res->effect);
-    }
-}
+void solver::push() {}
 
 void solver::pop()
 {
@@ -648,11 +625,49 @@ flaw *solver::select_flaw()
     return f_next;
 }
 
+void solver::take_decision(const smt::lit &ch)
+{
+    LOG("taking decision " << (ch.get_sign() ? std::to_string(ch.get_var()) : "!" + std::to_string(ch.get_var())));
+    // we push the given resolver into the trail..
+    trail.push_back(layer(ch));
+    if (res)
+    { // we just solved the resolver's effect..
+        assert(ch.get_sign());
+        assert(res->rho == ch.get_var());
+        trail.back().solved_flaws.insert(&res->effect);
+        flaws.erase(&res->effect);
+    }
+
+    // we take the decision..
+    if (!get_sat_core().assume(ch) || !get_sat_core().check())
+        throw std::runtime_error("the problem is unsolvable");
+    FIRE_STATE_CHANGED();
+}
+
+void solver::next()
+{
+    if (get_sat_core().root_level())
+        throw std::runtime_error("the problem is unsolvable");
+    std::vector<smt::lit> trail = get_trail();
+    std::vector<smt::lit> no_good(trail.rbegin(), trail.rend());
+    no_good[0] = !no_good[0];
+    get_sat_core().pop();
+    record(no_good);
+}
+
+void solver::record(const std::vector<lit> &clause)
+{
+    theory::record(clause);
+    if (!get_sat_core().check())
+        throw std::runtime_error("the problem is unsolvable");
+    FIRE_STATE_CHANGED();
+}
+
 std::vector<smt::lit> solver::get_trail() const
 {
     std::vector<smt::lit> c_trail(trail.size());
-    for (auto i = trail.begin(); i != trail.end(); ++i)
-        c_trail.push_back(i->r->get_rho());
+    for (const auto &l : trail)
+        c_trail.push_back(l.decision);
     return c_trail;
 }
 

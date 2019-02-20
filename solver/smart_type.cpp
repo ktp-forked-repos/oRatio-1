@@ -15,7 +15,10 @@ void smart_type::new_goal(atom_flaw &af) {}
 void smart_type::set_ni(const smt::var &v) { get_solver().set_ni(v); }
 void smart_type::restore_ni() { get_solver().restore_ni(); }
 
+void smart_type::take_decision(const smt::lit &ch) { get_solver().take_decision(ch); }
 std::vector<smt::lit> smart_type::get_trail() const { return get_solver().get_trail(); }
+
+void smart_type::next() { get_solver().next(); }
 void smart_type::record(const std::vector<smt::lit> &clause) { get_solver().record(clause); }
 
 std::vector<resolver *> smart_type::get_resolvers(solver &slv, const std::set<atom *> &atms)
