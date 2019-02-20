@@ -47,22 +47,27 @@ void solver::solve()
         if (f_next)
         {
 #ifndef GRAPH_PRUNING
-            if (f_next->get_estimated_cost().is_infinite())
-            {
-                // we go back to root level..
-                while (!get_sat_core().root_level())
-                    get_sat_core().pop();
-                for (const auto &f : pending_flaws)
+            while (f_next->get_estimated_cost().is_infinite())
+            { // we don't know how to solve the next flaw: we have to do something..
+                if (get_sat_core().value(gamma) == False)
                 {
-                    new_flaw(*f);
-                    expand_flaw(*f);
+                    assert(get_sat_core().root_level());
+                    for (const auto &f : pending_flaws)
+                    {
+                        new_flaw(*f);
+                        expand_flaw(*f);
+                    }
+                    pending_flaws.clear();
+                    if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
+                        increase_accuracy();     // so we increase the heuristic accuracy..
+                    else
+                        add_layer(); // we add a layer to the current graph..
                 }
-                pending_flaws.clear();
-                if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
-                    increase_accuracy();     // so we increase the heuristic accuracy..
                 else
-                    add_layer(); // we add a layer to the current graph..
-                continue;
+                    next();
+
+                // we select a new flaw..
+                f_next = select_flaw();
             }
 #endif
             assert(!f_next->get_estimated_cost().is_infinite());
@@ -648,9 +653,10 @@ void solver::next()
 {
     if (get_sat_core().root_level())
         throw std::runtime_error("the problem is unsolvable");
-    std::vector<smt::lit> trail = get_trail();
-    std::vector<smt::lit> no_good(trail.rbegin(), trail.rend());
-    no_good[0] = !no_good[0];
+    std::vector<smt::lit> no_good = get_trail();
+    for (size_t i = 0; i < no_good.size(); i++)
+        no_good[i] = !no_good[i];
+    std::reverse(no_good.begin(), no_good.end());
     get_sat_core().pop();
     record(no_good);
 }
@@ -665,7 +671,8 @@ void solver::record(const std::vector<lit> &clause)
 
 std::vector<smt::lit> solver::get_trail() const
 {
-    std::vector<smt::lit> c_trail(trail.size());
+    std::vector<smt::lit> c_trail;
+    c_trail.reserve(trail.size());
     for (const auto &l : trail)
         c_trail.push_back(l.decision);
     return c_trail;
