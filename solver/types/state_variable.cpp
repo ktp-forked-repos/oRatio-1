@@ -19,12 +19,9 @@ state_variable::~state_variable()
         delete a.second;
 }
 
-std::vector<flaw *> state_variable::get_flaws()
+void state_variable::get_flaws(std::vector<flaw *> &flaws)
 {
-    std::vector<flaw *> flaws;
-    if (to_check.empty()) // nothing has changed since last inconsistency check..
-        return flaws;
-    else
+    if (!to_check.empty())
     {
         std::vector<sv_flaw *> c_flaws;
 
@@ -147,7 +144,6 @@ std::vector<flaw *> state_variable::get_flaws()
                 take_decision(std::min_element(bst_flw.begin(), bst_flw.end(), [](std::pair<lit, double> const &ch0, std::pair<lit, double> const &ch1) { return ch0.second < ch1.second; })->first);
             }
         }
-        return flaws;
     }
 }
 
@@ -337,12 +333,14 @@ std::vector<std::pair<lit, double>> state_variable::sv_flaw::evaluate()
         {
             rational work = (slv.arith_value(a1_end).get_rational() - slv.arith_value(a1_start).get_rational()) * (slv.arith_value(a0_end).get_rational() - slv.arith_value(a1_start).get_rational());
             choices.push_back({a0_before_a1, 1l - 1l / (static_cast<double>(work.numerator()) / work.denominator())});
+            LOG("b" << std::to_string(a0_before_a1.get_var()) << ": σ" << as[0]->get_sigma() << " <= σ" << as[1]->get_sigma() << " (" << std::to_string(choices.back().second) << ")");
         }
         lit a1_before_a0 = sv.leqs.at(as[1]).at(as[0]);
         if (slv.get_sat_core().value(a1_before_a0) != False)
         {
             rational work = (slv.arith_value(a0_end).get_rational() - slv.arith_value(a0_start).get_rational()) * (slv.arith_value(a1_end).get_rational() - slv.arith_value(a0_start).get_rational());
             choices.push_back({a1_before_a0, 1l - 1l / (static_cast<double>(work.numerator()) / work.denominator())});
+            LOG("b" << std::to_string(a1_before_a0.get_var()) << ": σ" << as[1]->get_sigma() << " <= σ" << as[0]->get_sigma() << " (" << std::to_string(choices.back().second) << ")");
         }
 
         expr a0_tau = as[0]->get(TAU);

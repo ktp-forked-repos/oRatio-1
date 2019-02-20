@@ -37,40 +37,35 @@ void solver::init()
 void solver::solve()
 {
     build_graph(); // we build the causal graph..
-    FIRE_STATE_CHANGED();
 
     while (true)
     {
+        // we solve all the inconsistencies..
+        solve_inconsistencies();
+
         // this is the next flaw to be solved..
         flaw *f_next = select_flaw();
 
         if (f_next)
         {
 #ifndef GRAPH_PRUNING
-            while (f_next->get_estimated_cost().is_infinite())
+            if (f_next->get_estimated_cost().is_infinite())
             { // we don't know how to solve the next flaw: we have to do something..
-                if (get_sat_core().value(gamma) == False)
-                {
+                if (get_sat_core().value(gamma) != False)
+                    // we search..
+                    next();
+                else
+                { // we change the graph..
                     assert(get_sat_core().root_level());
-                    for (const auto &f : pending_flaws)
-                    {
-                        new_flaw(*f);
-                        expand_flaw(*f);
-                    }
-                    pending_flaws.clear();
                     if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
                         increase_accuracy();     // so we increase the heuristic accuracy..
                     else
                         add_layer(); // we add a layer to the current graph..
                 }
-                else
-                    next();
 
-                // we select a new flaw..
-                f_next = select_flaw();
+                continue;
             }
 #endif
-            assert(!f_next->get_estimated_cost().is_infinite());
             LOG("(" << std::to_string(trail.size()) << "): " << f_next->get_label());
             FIRE_CURRENT_FLAW(*f_next);
 
@@ -80,25 +75,13 @@ void solver::solve()
             FIRE_CURRENT_RESOLVER(*res);
 
             take_decision(res->rho);
-
             res = nullptr;
-
 #ifdef GRAPH_PRUNING
             check_graph(); // we check whether the planning graph can be used for the search..
 #endif
-
-            if (get_sat_core().root_level()) // we initialize and expand the new flaws..
-            {
-                for (const auto &f : pending_flaws)
-                {
-                    new_flaw(*f);
-                    expand_flaw(*f);
-                }
-                pending_flaws.clear();
-            }
         }
-        else if (!has_inconsistencies()) // we run out of flaws, we check for inconsistencies one last time..
-            return;                      // Hurray!! we have found a solution..
+        else
+            return; // Hurray!! we have found a solution..
     }
 }
 
@@ -125,21 +108,11 @@ void solver::build_graph()
 #endif
     }
 
-    // we create a new graph var..
-    gamma = get_sat_core().new_var();
-#ifdef BUILD_GUI
-    LOG("graph var is: γ" << std::to_string(gamma));
-#endif
-#ifdef GRAPH_PRUNING
-    // these flaws have not been expanded, hence, cannot have a solution..
-    for (const auto &f : flaw_q)
-        get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
-#endif
-    // we use the new graph var to allow search within the current graph..
-    take_decision(gamma);
+    // we create and set a new graph var..
+    set_new_gamma();
 }
 
-bool solver::has_inconsistencies()
+void solver::solve_inconsistencies()
 {
     LOG("checking for inconsistencies..");
     std::vector<flaw *> incs;
@@ -151,31 +124,15 @@ bool solver::has_inconsistencies()
     while (!q.empty())
     {
         if (smart_type *st = dynamic_cast<smart_type *>(q.front()))
-        {
-            std::vector<flaw *> c_incs = st->get_flaws(); // we collect flaws from the smart-types..
-            incs.insert(incs.end(), c_incs.begin(), c_incs.end());
-        }
+            // we collect new flaws from the smart-types and try to solve the existing ones..
+            st->get_flaws(incs);
         for (const auto &st : q.front()->get_types())
             q.push(st.second);
         q.pop();
     }
 
-    if (!incs.empty())
-    {
-        LOG("found " << std::to_string(incs.size()) << " new inconsistencies..");
-        pending_flaws.insert(pending_flaws.end(), incs.begin(), incs.end());
-
-#ifdef GRAPH_PRUNING
-        // we re-assume the current graph var to allow search within the current graph..
-        check_graph();
-#endif
-        return true;
-    }
-    else
-    {
-        LOG("no new inconsistencies found..");
-        return false;
-    }
+    LOG("found " << std::to_string(incs.size()) << " new inconsistencies..");
+    pending_flaws.insert(pending_flaws.end(), incs.begin(), incs.end());
 }
 
 void solver::expand_flaw(flaw &f)
@@ -246,18 +203,8 @@ void solver::add_layer()
                 expand_flaw(*f);
     }
 
-    // we create a new graph var..
-    gamma = get_sat_core().new_var();
-#ifdef BUILD_GUI
-    LOG("graph var is: γ" << std::to_string(gamma));
-#endif
-#ifdef GRAPH_PRUNING
-    // these flaws have not been expanded, hence, cannot have a solution..
-    for (const auto &f : flaw_q)
-        get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
-#endif
-    // we use the new graph var to allow search within the new graph..
-    take_decision(gamma);
+    // we create and set a new graph var..
+    set_new_gamma();
 }
 
 void solver::increase_accuracy()
@@ -317,7 +264,7 @@ bool solver::is_deferrable(flaw &f)
 #ifdef GRAPH_PRUNING
 void solver::check_graph()
 {
-    // we go back to root level..
+    // we go back at root level..
     while (!get_sat_core().root_level())
         get_sat_core().pop();
     for (const auto &f : pending_flaws)
@@ -447,7 +394,7 @@ bool solver::check(std::vector<lit> &cnfl)
     return true;
 }
 
-void solver::push() {}
+void solver::push() { LOG("level " << std::to_string(trail.size())); }
 
 void solver::pop()
 {
@@ -475,6 +422,8 @@ void solver::pop()
 #endif
 
     trail.pop_back();
+
+    LOG("level " << std::to_string(trail.size()));
 }
 
 void solver::new_flaw(flaw &f)
@@ -625,6 +574,22 @@ flaw *solver::select_flaw()
     return f_next;
 }
 
+void solver::set_new_gamma()
+{
+    // we create a new graph var..
+    gamma = get_sat_core().new_var();
+#ifdef BUILD_GUI
+    LOG("graph var is: γ" << std::to_string(gamma));
+#endif
+#ifdef GRAPH_PRUNING
+    // these flaws have not been expanded, hence, cannot have a solution..
+    for (const auto &f : flaw_q)
+        get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
+#endif
+    // we use the new graph var to allow search within the new graph..
+    take_decision(gamma);
+}
+
 void solver::take_decision(const smt::lit &ch)
 {
     LOG("taking decision " << (ch.get_sign() ? std::to_string(ch.get_var()) : "!" + std::to_string(ch.get_var())));
@@ -642,6 +607,19 @@ void solver::take_decision(const smt::lit &ch)
     if (!get_sat_core().assume(ch) || !get_sat_core().check())
         throw std::runtime_error("the problem is unsolvable");
     FIRE_STATE_CHANGED();
+
+    if (get_sat_core().root_level()) // we initialize and expand the new flaws..
+    {
+        for (const auto &f : pending_flaws)
+        {
+            new_flaw(*f);
+            expand_flaw(*f);
+        }
+        pending_flaws.clear();
+
+        if (get_sat_core().value(gamma) == False)
+            set_new_gamma();
+    }
 }
 
 void solver::next()

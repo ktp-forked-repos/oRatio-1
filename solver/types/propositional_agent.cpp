@@ -9,14 +9,7 @@ namespace ratio
 propositional_agent::propositional_agent(solver &slv) : smart_type(slv, slv, PROPOSITIONAL_AGENT_NAME) { new_constructors({new agnt_constructor(*this)}); }
 propositional_agent::~propositional_agent() {}
 
-std::vector<flaw *> propositional_agent::get_flaws()
-{
-    std::vector<flaw *> flaws;
-    if (to_check.empty()) // nothing has changed since last inconsistency check..
-        return flaws;
-    else
-        return flaws;
-}
+void propositional_agent::get_flaws(std::vector<flaw *> &flaws) {}
 
 void propositional_agent::new_fact(atom_flaw &) { throw std::logic_error("it is not possible to define facts on propositional agents.."); }
 

@@ -26,7 +26,7 @@ public:
   solver &get_solver() const { return slv; }
 
 private:
-  virtual std::vector<flaw *> get_flaws() = 0;
+  virtual void get_flaws(std::vector<flaw *> &flaws) = 0;
   virtual void new_fact(atom_flaw &);
   virtual void new_goal(atom_flaw &);
 

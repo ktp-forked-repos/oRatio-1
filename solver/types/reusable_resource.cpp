@@ -19,12 +19,9 @@ reusable_resource::reusable_resource(solver &slv) : smart_type(slv, slv, REUSABL
 }
 reusable_resource::~reusable_resource() {}
 
-std::vector<flaw *> reusable_resource::get_flaws()
+void reusable_resource::get_flaws(std::vector<flaw *> &flaws)
 {
-    std::vector<flaw *> flaws;
-    if (to_check.empty()) // nothing has changed since last inconsistency check..
-        return flaws;
-    else
+    if (!to_check.empty())
     {
         std::vector<rr_flaw *> c_flaws;
 
@@ -156,7 +153,6 @@ std::vector<flaw *> reusable_resource::get_flaws()
                 take_decision(std::min_element(bst_flw.begin(), bst_flw.end(), [](std::pair<lit, double> const &ch0, std::pair<lit, double> const &ch1) { return ch0.second < ch1.second; })->first);
             }
         }
-        return flaws;
     }
 }
 

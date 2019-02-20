@@ -20,7 +20,7 @@ public:
   virtual ~propositional_state();
 
 private:
-  std::vector<flaw *> get_flaws() override;
+  void get_flaws(std::vector<flaw *> &flaws) override;
 
   void new_predicate(predicate &pred) override;
   void new_fact(atom_flaw &f) override;

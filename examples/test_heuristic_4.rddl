@@ -23,5 +23,6 @@ Location l2 = new Location(2.0);
 Location l3 = new Location(3.0);
 
 fact at_tru1_l1 = new tru1.At(l:l1, start:origin);
+at_tru1_l1.duration >= 1.0;
 goal at_tru1_l2 = new tru1.At(l:l2);
 goal at_tru1_l3 = new tru1.At(l:l3);

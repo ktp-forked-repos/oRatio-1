@@ -19,14 +19,7 @@ propositional_state::~propositional_state()
         delete a.second;
 }
 
-std::vector<flaw *> propositional_state::get_flaws()
-{
-    std::vector<flaw *> flaws;
-    if (to_check.empty()) // nothing has changed since last inconsistency check..
-        return flaws;
-    else
-        return flaws;
-}
+void propositional_state::get_flaws(std::vector<flaw *> &flaws) {}
 
 void propositional_state::new_predicate(predicate &pred)
 {

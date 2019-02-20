@@ -63,7 +63,7 @@ public:
 
 private:
   void build_graph();               // builds the planning graph..
-  bool has_inconsistencies();       // checks whether the types have some inconsistency..
+  void solve_inconsistencies();     // checks whether the types have some inconsistency..
   void expand_flaw(flaw &f);        // expands the given flaw into the planning graph..
   void apply_resolver(resolver &r); // applies the given resolver into the planning graph..
 
@@ -94,6 +94,7 @@ private:
   static const smt::rational evaluate(const std::vector<flaw *> &fs); // evaluates, together, the given vector of flaws..
   flaw *select_flaw();                                                // selects the most promising (i.e. the most expensive one) flaw from the 'flaws' set, returns a nullptr if there are no more active flaws..
 
+  void set_new_gamma();
   void take_decision(const smt::lit &ch);
   void next();
   void record(const std::vector<smt::lit> &clause) override;

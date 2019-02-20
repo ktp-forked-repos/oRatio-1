@@ -17,7 +17,7 @@ public:
   virtual ~propositional_agent();
 
 private:
-  std::vector<flaw *> get_flaws() override;
+  void get_flaws(std::vector<flaw *> &flaws) override;
 
   void new_fact(atom_flaw &f) override;
   void new_goal(atom_flaw &f) override;
