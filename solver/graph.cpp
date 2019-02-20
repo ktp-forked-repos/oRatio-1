@@ -7,7 +7,7 @@ using namespace smt;
 namespace ratio
 {
 
-flaw::flaw(solver &slv, const std::vector<resolver *> &causes, const bool &exclusive, const bool &structural) : slv(slv), causes(causes), supports(causes), exclusive(exclusive), structural(structural)
+flaw::flaw(solver &slv, const std::vector<resolver *> &causes, const bool &exclusive) : slv(slv), causes(causes), supports(causes), exclusive(exclusive)
 {
     for (const auto &r : causes) // we add this flaw to the preconditions of the causes..
         r->preconditions.push_back(this);

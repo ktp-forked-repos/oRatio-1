@@ -14,7 +14,7 @@ inline const std::vector<resolver *> get_cause(resolver *const cause)
         return {};
 }
 
-disjunction_flaw::disjunction_flaw(solver &slv, resolver *const cause, const context &ctx, const disjunction &disj) : flaw(slv, get_cause(cause), false, true), ctx(ctx), disj(disj) {}
+disjunction_flaw::disjunction_flaw(solver &slv, resolver *const cause, const context &ctx, const disjunction &disj) : flaw(slv, get_cause(cause), false), ctx(ctx), disj(disj) {}
 disjunction_flaw::~disjunction_flaw() {}
 
 #ifdef BUILD_GUI

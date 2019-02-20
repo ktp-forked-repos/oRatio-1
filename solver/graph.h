@@ -19,7 +19,7 @@ class flaw
   friend class solver;
 
 public:
-  flaw(solver &slv, const std::vector<resolver *> &causes, const bool &exclusive = false, const bool &structural = false);
+  flaw(solver &slv, const std::vector<resolver *> &causes, const bool &exclusive = false);
   flaw(const flaw &orig) = delete;
   ~flaw();
 
@@ -54,7 +54,6 @@ private:
   std::vector<resolver *> causes;                            // the causes for having this flaw..
   std::vector<resolver *> supports;                          // the resolvers supported by this flaw..
   const bool exclusive;                                      // a boolean indicating whether the flaw is exclusive (i.e. exactly one of its resolver can be applied)..
-  const bool structural;                                     // a boolean indicating whether the flaw is structural (i.e. it is not an inconsistency raised from types' consistency checking procedures)..
   bool expanded = false;                                     // a boolean indicating whether the flaw has been expanded..
 };
 

@@ -13,7 +13,7 @@ inline const std::vector<resolver *> get_cause(resolver *const cause)
         return {};
 }
 
-var_flaw::var_flaw(solver &slv, resolver *const cause, var_item &v_itm) : flaw(slv, get_cause(cause), true, true), v_itm(v_itm) {}
+var_flaw::var_flaw(solver &slv, resolver *const cause, var_item &v_itm) : flaw(slv, get_cause(cause), true), v_itm(v_itm) {}
 var_flaw::~var_flaw() {}
 
 #ifdef BUILD_GUI

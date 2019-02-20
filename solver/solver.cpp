@@ -73,21 +73,19 @@ void solver::solve()
             assert(!f_next->get_estimated_cost().is_infinite());
             LOG("(" << std::to_string(trail.size()) << "): " << f_next->get_label());
             FIRE_CURRENT_FLAW(*f_next);
-            if (!f_next->structural || !has_inconsistencies()) // we run out of inconsistencies, thus, we renew them..
-            {
-                // this is the next resolver to be assumed..
-                res = f_next->get_best_resolver();
-                LOG(res->get_label());
-                FIRE_CURRENT_RESOLVER(*res);
 
-                take_decision(res->rho);
+            // this is the next resolver to be assumed..
+            res = f_next->get_best_resolver();
+            LOG(res->get_label());
+            FIRE_CURRENT_RESOLVER(*res);
 
-                res = nullptr;
+            take_decision(res->rho);
+
+            res = nullptr;
 
 #ifdef GRAPH_PRUNING
-                check_graph(); // we check whether the planning graph can be used for the search..
+            check_graph(); // we check whether the planning graph can be used for the search..
 #endif
-            }
 
             if (get_sat_core().root_level()) // we initialize and expand the new flaws..
             {
@@ -162,7 +160,6 @@ bool solver::has_inconsistencies()
         q.pop();
     }
 
-    assert(std::none_of(incs.begin(), incs.end(), [&](flaw *f) { return f->structural; }));
     if (!incs.empty())
     {
         LOG("found " << std::to_string(incs.size()) << " new inconsistencies..");
@@ -620,9 +617,7 @@ flaw *solver::select_flaw()
             // the current flaw is not trivial nor already solved: let's see if it's better than the previous one..
             if (!f_next) // this is the first flaw we see..
                 f_next = *it;
-            else if (f_next->structural && !(*it)->structural) // we prefere non-structural flaws (i.e., inconsistencies) to structural ones..
-                f_next = *it;
-            else if (f_next->structural == (*it)->structural && f_next->get_estimated_cost() < (*it)->get_estimated_cost()) // this flaw is actually better than the previous one..
+            else if (f_next->get_estimated_cost() < (*it)->get_estimated_cost()) // this flaw is actually better than the previous one..
                 f_next = *it;
             ++it;
         }

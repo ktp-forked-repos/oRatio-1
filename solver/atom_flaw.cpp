@@ -18,7 +18,7 @@ inline const std::vector<resolver *> get_cause(resolver *const cause)
         return {};
 }
 
-atom_flaw::atom_flaw(solver &slv, resolver *const cause, atom &atm, const bool is_fact) : flaw(slv, get_cause(cause), true, true), atm(atm), is_fact(is_fact) {}
+atom_flaw::atom_flaw(solver &slv, resolver *const cause, atom &atm, const bool is_fact) : flaw(slv, get_cause(cause), true), atm(atm), is_fact(is_fact) {}
 atom_flaw::~atom_flaw() {}
 
 #ifdef BUILD_GUI
