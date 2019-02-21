@@ -49,10 +49,10 @@ void flaw::init()
 void flaw::expand()
 {
     assert(!expanded);
+    expanded = true; // the flaw is now expanded..
 
     // we compute the resolvers..
     compute_resolvers();
-    expanded = true; // the flaw is now expanded..
 
     // we add causal relations between the flaw and its resolvers (i.e., if the flaw is phi exactly one of its resolvers should be in plan)..
     if (resolvers.empty())

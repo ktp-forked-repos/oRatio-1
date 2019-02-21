@@ -531,20 +531,23 @@ void solver::set_estimated_cost(resolver &r, const rational &cst)
 
 const smt::rational solver::evaluate(const std::vector<flaw *> &fs)
 {
-    assert(std::all_of(fs.begin(), fs.end(), [](const auto &f) { return f->expanded; }));
     rational c_cost;
 #ifdef H_MAX
     c_cost = rational::NEGATIVE_INFINITY;
     for (const auto &f : fs)
-    {
-        rational c = f->get_estimated_cost();
-        if (c > c_cost)
-            c_cost = c;
-    }
+        if (!f->expanded)
+            return rational::POSITIVE_INFINITY;
+        else
+        {
+            rational c = f->get_estimated_cost();
+            if (c > c_cost)
+                c_cost = c;
+        }
 #endif
 #ifdef H_ADD
     for (const auto &f : fs)
-        c_cost += f->get_estimated_cost();
+        return rational::POSITIVE_INFINITY;
+    else c_cost += f->get_estimated_cost();
 #endif
     return c_cost;
 }
