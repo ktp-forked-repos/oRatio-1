@@ -531,6 +531,7 @@ void solver::set_estimated_cost(resolver &r, const rational &cst)
 
 const smt::rational solver::evaluate(const std::vector<flaw *> &fs)
 {
+    assert(std::all_of(fs.begin(), fs.end(), [](const auto &f) { return f->expanded; }));
     rational c_cost;
 #ifdef H_MAX
     c_cost = rational::NEGATIVE_INFINITY;

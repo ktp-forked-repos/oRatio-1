@@ -7,11 +7,7 @@ using namespace smt;
 namespace ratio
 {
 
-flaw::flaw(solver &slv, const std::vector<resolver *> &causes, const bool &exclusive) : slv(slv), causes(causes), supports(causes), exclusive(exclusive)
-{
-    for (const auto &r : causes) // we add this flaw to the preconditions of the causes..
-        r->preconditions.push_back(this);
-}
+flaw::flaw(solver &slv, const std::vector<resolver *> &causes, const bool &exclusive) : slv(slv), causes(causes), supports(causes), exclusive(exclusive) {}
 flaw::~flaw() {}
 
 resolver *flaw::get_best_resolver() const
@@ -30,8 +26,13 @@ resolver *flaw::get_best_resolver() const
 void flaw::init()
 {
     assert(!expanded);
+
+    // we add this flaw to the preconditions of its causes..
+    for (const auto &r : causes)
+        r->preconditions.push_back(this);
+
     if (causes.empty())
-        // the flaw is necessarily active..
+        // this flaw is necessarily active..
         phi = TRUE_var;
     else
     {
@@ -40,7 +41,7 @@ void flaw::init()
         for (const auto &c : causes)
             cs.push_back(c->rho);
 
-        // the flaw is active if the conjunction of its causes is active..
+        // this flaw is active iff the conjunction of its causes is active..
         phi = slv.get_sat_core().new_conj(cs);
     }
 }
