@@ -577,16 +577,17 @@ void solver::set_new_gamma()
 {
     // we create a new graph var..
     gamma = get_sat_core().new_var();
-#ifdef BUILD_GUI
     LOG("graph var is: γ" << std::to_string(gamma));
-#endif
 #ifdef GRAPH_PRUNING
     // these flaws have not been expanded, hence, cannot have a solution..
     for (const auto &f : flaw_q)
         get_sat_core().new_clause({lit(gamma, false), lit(f->phi, false)});
 #endif
     // we use the new graph var to allow search within the new graph..
-    take_decision(gamma);
+    LOG("assuming γ " << std::to_string(gamma));
+    if (!get_sat_core().assume(gamma) || !get_sat_core().check())
+        throw std::runtime_error("the problem is unsolvable");
+    FIRE_STATE_CHANGED();
 }
 
 void solver::take_decision(const smt::lit &ch)
@@ -620,7 +621,7 @@ void solver::take_decision(const smt::lit &ch)
 
         switch (get_sat_core().value(gamma))
         {
-        case True: // the graph is perfect!
+        case True: // wow! the graph is perfect..
             break;
         case False:                      // we have to change the graph:
             if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
@@ -628,8 +629,12 @@ void solver::take_decision(const smt::lit &ch)
             else
                 add_layer(); // we add a layer to the current graph..
             break;
-        case Undefined:           // we have learnt a unit clause..
-            take_decision(gamma); // we reassume gamma..
+        case Undefined: // we have learnt a unit clause..
+            // we re-assume gamma..
+            LOG("re-assuming γ " << std::to_string(gamma));
+            if (!get_sat_core().assume(gamma) || !get_sat_core().check())
+                throw std::runtime_error("the problem is unsolvable");
+            FIRE_STATE_CHANGED();
             break;
         }
     }
