@@ -64,7 +64,6 @@ void solver::solve()
             FIRE_CURRENT_RESOLVER(*res);
 
             take_decision(res->rho);
-            res = nullptr;
 #ifdef GRAPH_PRUNING
             check_graph(); // we check whether the planning graph can be used for the search..
 #endif
@@ -585,9 +584,7 @@ void solver::set_new_gamma()
 #endif
     // we use the new graph var to allow search within the new graph..
     LOG("assuming γ " << std::to_string(gamma));
-    if (!get_sat_core().assume(gamma) || !get_sat_core().check())
-        throw std::runtime_error("the problem is unsolvable");
-    FIRE_STATE_CHANGED();
+    take_decision(gamma);
 }
 
 void solver::take_decision(const smt::lit &ch)
@@ -602,6 +599,7 @@ void solver::take_decision(const smt::lit &ch)
         assert(res->rho == ch.get_var());
         trail.back().solved_flaws.insert(&res->effect);
         flaws.erase(&res->effect);
+        res = nullptr;
     }
 
     // we take the decision..
@@ -632,9 +630,7 @@ void solver::take_decision(const smt::lit &ch)
         case Undefined: // we have learnt a unit clause..
             // we re-assume gamma..
             LOG("re-assuming γ " << std::to_string(gamma));
-            if (!get_sat_core().assume(gamma) || !get_sat_core().check())
-                throw std::runtime_error("the problem is unsolvable");
-            FIRE_STATE_CHANGED();
+            take_decision(gamma);
             break;
         }
     }
