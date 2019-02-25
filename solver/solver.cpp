@@ -609,13 +609,20 @@ void solver::take_decision(const smt::lit &ch)
     FIRE_STATE_CHANGED();
 
     if (get_sat_core().root_level())
-    { // we initialize and expand the new flaws..
+    {
+        assert(get_sat_core().value(gamma) == False);
+        // we initialize and expand the new flaws..
         for (const auto &f : pending_flaws)
         {
             new_flaw(*f);
             expand_flaw(*f);
         }
         pending_flaws.clear();
+
+        if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
+            increase_accuracy();     // so we increase the heuristic accuracy..
+        else
+            add_layer(); // we add a layer to the current graph..
     }
 }
 
