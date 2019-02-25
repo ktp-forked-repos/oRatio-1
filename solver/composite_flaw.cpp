@@ -72,10 +72,25 @@ void composite_flaw::compute_resolvers()
             cnj.push_back(r->get_rho());
         }
         smt::var cnj_var = slv.get_sat_core().new_conj(cnj);
+
 #ifdef CHECK_COMPOSITE_FLAWS
         check_lits.push_back(cnj_var);
+        slv.checking = true;
         if (slv.get_sat_core().check(check_lits))
+        {
+            slv.checking = false;
             add_resolver(*new composite_resolver(slv, *this, cnj_var, cst, rp));
+        }
+        else
+        {
+            slv.checking = false;
+            std::vector<smt::lit> no_good;
+            no_good.reserve(check_lits.size());
+            for (const auto &l : check_lits)
+                no_good.push_back(!l);
+            if (!slv.get_sat_core().new_clause(no_good))
+                throw std::runtime_error("the problem is unsolvable");
+        }
         check_lits.pop_back();
 #else
         if (slv.get_sat_core().value(cnj_var) != smt::False)

@@ -49,20 +49,9 @@ void solver::solve()
         if (f_next)
         {
 #ifndef GRAPH_PRUNING
-            if (f_next->get_estimated_cost().is_infinite())
-            { // we don't know how to solve the next flaw: we have to do something..
-                if (get_sat_core().value(gamma) != False)
-                    // we search..
-                    next();
-                else
-                { // we change the graph..
-                    assert(get_sat_core().root_level());
-                    if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
-                        increase_accuracy();     // so we increase the heuristic accuracy..
-                    else
-                        add_layer(); // we add a layer to the current graph..
-                }
-
+            if (f_next->get_estimated_cost().is_infinite()) // we don't know how to solve the next flaw: we search..
+            {
+                next();
                 continue;
             }
 #endif
@@ -362,28 +351,31 @@ void solver::new_disjunction(context &d_ctx, const disjunction &disj)
 bool solver::propagate(const lit &p, std::vector<lit> &cnfl)
 {
     assert(cnfl.empty());
-    const auto at_phis_p = phis.find(p.get_var());
-    if (at_phis_p != phis.end()) // a decision has been taken about the presence of some flaws within the current partial solution..
-        for (const auto &f : at_phis_p->second)
-        {
-            FIRE_FLAW_STATE_CHANGED(*f);
-            if (p.get_sign()) // this flaw has been added to the current partial solution..
+    if (!checking)
+    {
+        const auto at_phis_p = phis.find(p.get_var());
+        if (at_phis_p != phis.end()) // a decision has been taken about the presence of some flaws within the current partial solution..
+            for (const auto &f : at_phis_p->second)
             {
-                flaws.insert(f);
-                if (!trail.empty())
-                    trail.back().new_flaws.insert(f);
+                FIRE_FLAW_STATE_CHANGED(*f);
+                if (p.get_sign()) // this flaw has been added to the current partial solution..
+                {
+                    flaws.insert(f);
+                    if (!trail.empty())
+                        trail.back().new_flaws.insert(f);
+                }
+                else // this flaw has been removed from the current partial solution..
+                    assert(flaws.find(f) == flaws.end());
             }
-            else // this flaw has been removed from the current partial solution..
-                assert(flaws.find(f) == flaws.end());
-        }
 
-    const auto at_rhos_p = rhos.find(p.get_var());
-    if (at_rhos_p != rhos.end() && !p.get_sign()) // a decision has been taken about the removal of some resolvers within the current partial solution..
-        for (const auto &r : at_rhos_p->second)
-        {
-            FIRE_RESOLVER_STATE_CHANGED(*r);
-            set_estimated_cost(*r, rational::POSITIVE_INFINITY);
-        }
+        const auto at_rhos_p = rhos.find(p.get_var());
+        if (at_rhos_p != rhos.end() && !p.get_sign()) // a decision has been taken about the removal of some resolvers within the current partial solution..
+            for (const auto &r : at_rhos_p->second)
+            {
+                FIRE_RESOLVER_STATE_CHANGED(*r);
+                set_estimated_cost(*r, rational::POSITIVE_INFINITY);
+            }
+    }
 
     return true;
 }
@@ -398,32 +390,35 @@ void solver::push() { LOG("level " << std::to_string(trail.size())); }
 
 void solver::pop()
 {
-    // we reintroduce the solved flaw..
-    for (const auto &f : trail.back().solved_flaws)
-        flaws.insert(f);
+    if (!checking)
+    {
+        // we reintroduce the solved flaw..
+        for (const auto &f : trail.back().solved_flaws)
+            flaws.insert(f);
 
-    // we erase the new flaws..
-    for (const auto &f : trail.back().new_flaws)
-        flaws.erase(f);
+        // we erase the new flaws..
+        for (const auto &f : trail.back().new_flaws)
+            flaws.erase(f);
 
-    // we restore the resolvers' estimated costs..
-    for (const auto &r : trail.back().old_r_costs)
-        r.first->est_cost = r.second;
+        // we restore the resolvers' estimated costs..
+        for (const auto &r : trail.back().old_r_costs)
+            r.first->est_cost = r.second;
 
-    // we restore the flaws' estimated costs..
-    for (const auto &f : trail.back().old_f_costs)
-        f.first->est_cost = f.second;
+        // we restore the flaws' estimated costs..
+        for (const auto &f : trail.back().old_f_costs)
+            f.first->est_cost = f.second;
 
 #ifdef BUILD_GUI
-    for (const auto &r : trail.back().old_r_costs)
-        FIRE_RESOLVER_COST_CHANGED(*r.first);
-    for (const auto &f : trail.back().old_f_costs)
-        FIRE_FLAW_COST_CHANGED(*f.first);
+        for (const auto &r : trail.back().old_r_costs)
+            FIRE_RESOLVER_COST_CHANGED(*r.first);
+        for (const auto &f : trail.back().old_f_costs)
+            FIRE_FLAW_COST_CHANGED(*f.first);
 #endif
 
-    trail.pop_back();
+        trail.pop_back();
 
-    LOG("level " << std::to_string(trail.size()));
+        LOG("level " << std::to_string(trail.size()));
+    }
 }
 
 void solver::new_flaw(flaw &f)
@@ -596,6 +591,7 @@ void solver::set_new_gamma()
 
 void solver::take_decision(const smt::lit &ch)
 {
+    assert(!checking);
     LOG("taking decision " << (ch.get_sign() ? std::to_string(ch.get_var()) : "!" + std::to_string(ch.get_var())));
     // we push the given resolver into the trail..
     trail.push_back(layer(ch));
@@ -612,17 +608,14 @@ void solver::take_decision(const smt::lit &ch)
         throw std::runtime_error("the problem is unsolvable");
     FIRE_STATE_CHANGED();
 
-    if (get_sat_core().root_level()) // we initialize and expand the new flaws..
-    {
+    if (get_sat_core().root_level())
+    { // we initialize and expand the new flaws..
         for (const auto &f : pending_flaws)
         {
             new_flaw(*f);
             expand_flaw(*f);
         }
         pending_flaws.clear();
-
-        if (get_sat_core().value(gamma) == False)
-            set_new_gamma();
     }
 }
 
@@ -644,6 +637,16 @@ void solver::record(const std::vector<lit> &clause)
     if (!get_sat_core().check())
         throw std::runtime_error("the problem is unsolvable");
     FIRE_STATE_CHANGED();
+
+    // we check if we need to change the graph..
+    if (get_sat_core().value(gamma) == False)
+    { // we do need to change the graph..
+        assert(get_sat_core().root_level());
+        if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
+            increase_accuracy();     // so we increase the heuristic accuracy..
+        else
+            add_layer(); // we add a layer to the current graph..
+    }
 }
 
 std::vector<smt::lit> solver::get_trail() const
