@@ -610,7 +610,6 @@ void solver::take_decision(const smt::lit &ch)
 
     if (get_sat_core().root_level())
     {
-        assert(get_sat_core().value(gamma) == False);
         // we initialize and expand the new flaws..
         for (const auto &f : pending_flaws)
         {
@@ -619,10 +618,20 @@ void solver::take_decision(const smt::lit &ch)
         }
         pending_flaws.clear();
 
-        if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
-            increase_accuracy();     // so we increase the heuristic accuracy..
-        else
-            add_layer(); // we add a layer to the current graph..
+        switch (get_sat_core().value(gamma))
+        {
+        case True: // the graph is perfect!
+            break;
+        case False:                      // we have to change the graph:
+            if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
+                increase_accuracy();     // so we increase the heuristic accuracy..
+            else
+                add_layer(); // we add a layer to the current graph..
+            break;
+        case Undefined:           // we have learnt a unit clause..
+            take_decision(gamma); // we reassume gamma..
+            break;
+        }
     }
 }
 
