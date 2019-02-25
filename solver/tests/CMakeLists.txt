@@ -17,6 +17,7 @@ add_test(NAME HeuristicTest00 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples
 add_test(NAME HeuristicTest01 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples/test_heuristic_1.rddl" "solution.json" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME HeuristicTest02 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples/test_heuristic_2.rddl" "solution.json" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME HeuristicTest03 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples/test_heuristic_3.rddl" "solution.json" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME HeuristicTest04 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples/test_heuristic_4.rddl" "solution.json" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME TestRR00 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples/test_rr_0.rddl" "solution.json" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME TestRR01 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples/test_rr_1.rddl" "solution.json" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 add_test(NAME TestSV00 COMMAND solver_tests "${CMAKE_SOURCE_DIR}/examples/test_sv_0.rddl" "solution.json" WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
