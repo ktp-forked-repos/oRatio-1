@@ -385,7 +385,7 @@ bool solver::check(std::vector<lit> &cnfl)
     return true;
 }
 
-void solver::push() { LOG("level " << std::to_string(trail.size())); }
+void solver::push() {}
 
 void solver::pop()
 {
@@ -591,8 +591,11 @@ void solver::take_decision(const smt::lit &ch)
 {
     assert(!checking);
     LOG("taking decision " << (ch.get_sign() ? std::to_string(ch.get_var()) : "!" + std::to_string(ch.get_var())));
+
     // we push the given resolver into the trail..
     trail.push_back(layer(ch));
+    LOG("level " << std::to_string(trail.size()));
+
     if (res)
     { // we just solved the resolver's effect..
         assert(ch.get_sign());
@@ -638,14 +641,35 @@ void solver::take_decision(const smt::lit &ch)
 
 void solver::next()
 {
+    LOG("next..");
     if (get_sat_core().root_level())
         throw std::runtime_error("the problem is unsolvable");
     std::vector<smt::lit> no_good = get_trail();
     for (size_t i = 0; i < no_good.size(); i++)
         no_good[i] = !no_good[i];
-    std::reverse(no_good.begin(), no_good.end());
+    assert(!no_good.empty());
     get_sat_core().pop();
-    record(no_good);
+    while (!no_good.empty() && get_sat_core().value(no_good.back()) != Undefined)
+    {
+        get_sat_core().pop();
+        no_good.pop_back();
+    }
+
+    // we check if we need to change the graph..
+    if (get_sat_core().value(gamma) == False)
+    { // we do need to change the graph..
+        assert(get_sat_core().root_level());
+        if (accuracy < max_accuracy) // we have room for increasing the heuristic accuracy..
+            increase_accuracy();     // so we increase the heuristic accuracy..
+        else
+            add_layer(); // we add a layer to the current graph..
+    }
+    else
+    {
+        // we reverse the no-good and store it..
+        std::reverse(no_good.begin(), no_good.end());
+        record(no_good);
+    }
 }
 
 void solver::record(const std::vector<lit> &clause)
